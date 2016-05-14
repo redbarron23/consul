@@ -175,6 +175,7 @@ vagrant@n1:~$ consul agent -dev -config-dir /etc/consul.d -bind 172.20.20.10
     2016/04/09 18:36:14 [INFO] agent: Synced service 'web'
 #+END_SRC
 
+
 ** DNS API
 #+BEGIN_SRC sh
 vagrant@n1:~$ dig @127.0.0.1 -p 8600 web.service.consul
@@ -200,6 +201,7 @@ web.service.consul.0INA172.20.20.10
 #+END_SRC
 
 *** SRV Record
+#+BEGIN_SRC sh
 vagrant@n1:~$ dig @127.0.0.1 -p 8600 web.service.consul SRV
 
 ; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 web.service.consul SRV
@@ -223,8 +225,10 @@ n1.node.dc1.consul.0INA172.20.20.10
 ;; SERVER: 127.0.0.1#8600(127.0.0.1)
 ;; WHEN: Sat Apr 09 18:51:16 UTC 2016
 ;; MSG SIZE  rcvd: 126
+#+END_SRC
 
 *** DNS Filter by tags
+#+BEGIN_SRC sh
 vagrant@n1:~$ dig @127.0.0.1 -p 8600 rails.web.service.consul
 
 ; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 rails.web.service.consul
@@ -245,6 +249,7 @@ rails.web.service.consul. 0INA172.20.20.10
 ;; SERVER: 127.0.0.1#8600(127.0.0.1)
 ;; WHEN: Sat Apr 09 18:52:00 UTC 2016
 ;; MSG SIZE  rcvd: 82
+#+END_SRC
 
 
 ** HTTP API

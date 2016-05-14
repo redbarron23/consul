@@ -25,30 +25,6 @@ $ vagrant ssh n2
 $ vagrant ssh n3
 #+END_SRC
 
-* Download go
-#+BEGIN_SRC sh
-wget https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz
-#+END_SRC
-
-* install Go (Don't use dpkg or rpm)
-#+BEGIN_SRC sh
-root@n1:/home/vagrant/stage# tar -C /usr/local -xzf go1.6.2.linux-amd64.tar.gz
-#+END_SRC
-
-* verify installation
-#+BEGIN_SRC sh
-root@n1:/home/vagrant/stage# ls -l /usr/local/go/bin/go
--rwxr-xr-x 1 root root 12534576 Apr 19 23:51 /usr/local/go/bin/go
-
-root@n1:/home/vagrant/stage# /usr/local/go/bin/go version
-go version go1.6.2 linux/amd64
-#+END_SRC
-
-* Add /usr/local/go/bin to the PATH environment variable. 
-You can do this by adding this line to your /etc/profile (for a system-wide installation) or $HOME/.profile:
-export PATH=$PATH:/usr/local/go/bin
-
-
 * start up Agent in dev mode
 ** $ consul agent -dev -bind 172.20.20.10
 #+BEGIN_SRC sh
@@ -653,23 +629,28 @@ query_time = 1
 
 
 * consul members
+#+BEGIN_SRC sh
 root@n1:~# consul members
 Node       Address            Status  Type    Build  Protocol  DC
 agent-one  172.20.20.10:8301  alive   server  0.6.1  2         dc1
+#+END_SRC
 
 
 * envconsul (Get Environment Variables)
 ** download
+#+BEGIN_SRC sh
 wget https://releases.hashicorp.com/envconsul/0.6.1/envconsul_0.6.1_linux_amd64.zip
+#+END_SRC
 
 ** install
+#+BEGIN_SRC sh
 vagrant@n1:~$ unzip envconsul_0.6.1_linux_amd64.zip
 Archive:  envconsul_0.6.1_linux_amd64.zip
   inflating: envconsul
 
 
 vagrant@n1:~$ sudo cp envconsul /usr/local/bin/
-
+#+END_SRC
 
 
 
@@ -685,6 +666,5 @@ vagrant@n1:~$ sudo cp envconsul /usr/local/bin/
 
 * links
 https://www.hashicorp.com/blog/twelve-factor-consul.html
-
 http://www.mammatustech.com/consul-service-discovery-and-health-for-microservices-architecture-tutorial
 

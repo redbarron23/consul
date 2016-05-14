@@ -5,8 +5,6 @@ or use this one
 https://github.com/redbarron23/consul/blob/master/Vagrantfile
 
 * vagrant up
-
-
 * vagrant status
 #+BEGIN_SRC sh
 $ vagrant status
@@ -332,6 +330,7 @@ agent-three.node.consul. 0INA172.20.20.12
 
 * Defining Checks
 ** add ping and curl checks
+#+BEGIN_SRC sh
 vagrant@n2:~$ echo '{"check": {"name": "ping",
 >   "script": "ping -c1 google.com >/dev/null", "interval": "30s"}}' \
 >   >/etc/consul.d/ping.json
@@ -345,7 +344,7 @@ vagrant@n3:~$ echo '{"check": {"name": "ping",
 vagrant@n3:~$ echo '{"service": {"name": "web", "tags": ["rails"], "port": 80,
 >   "check": {"script": "curl localhost >/dev/null 2>&1", "interval": "10s"}}}' \
 >   >/etc/consul.d/web.json
-
+#+END_SRC
 ** restart consul to pickup the changes
 enter ctrl-c and restart 
 ^C==> Caught signal: interrupt
@@ -495,6 +494,7 @@ web.service.consul.0INA172.20.20.12
 * KEY/VALUE DATA
 ** This can be used to hold dynamic configuration, assist in service coordination, build leader election
 *** verify that there are no existing keys in the k/v store
+#+BEGIN_SRC sh
 vagrant@n2:~$ curl -v http://localhost:8500/v1/kv/?recurse
 \* Hostname was NOT found in DNS cache
 \*   Trying 127.0.0.1...
@@ -513,14 +513,19 @@ vagrant@n2:~$ curl -v http://localhost:8500/v1/kv/?recurse
 < Content-Type: text/plain; charset=utf-8
 <
 \* Connection #0 to host localhost left intact
+#+END_SRC
+
 *** add some keys
+#+BEGIN_SRC sh
 vagrant@n2:~$ curl -X PUT -d 'test' http://localhost:8500/v1/kv/web/key1
 truevagrant@n2:~$ curl -X PUT -d 'test' http://localhost:8500/v1/kv/web/key2?flags=42
 truevagrant@n2:~$ curl -X PUT -d 'test'  http://localhost:8500/v1/kv/web/sub/key3
 truevagrant@n2:~$ curl http://localhost:8500/v1/kv/?recurse
 [{"LockIndex":0,"Key":"web/key1","Flags":0,"Value":"dGVzdA==","CreateIndex":808,"ModifyIndex":808},{"LockIndex":0,"Key":"web/key2","Flags":42,"Value":"dGVzdA==","CreateIndex":822,"ModifyIndex":822},{"LockIndex":0,"Key":"web/sub/key3","Flags":0,"Value":"dGVzdA==","CreateIndex":825,"ModifyIndex":825}]vagrant@n2:~$
+#+END_SRC
 
 *** fetch a single key just as easily:
+#+BEGIN_SRC sh
 vagrant@n1:~$ curl http://localhost:8500/v1/kv/web/key1?pretty
 [
     {
@@ -544,6 +549,7 @@ vagrant@n1:~$ curl http://localhost:8500/v1/kv/web/key2?pretty
         "ModifyIndex": 822
     }
 ]
+#+END_SRC
 
 ** try from another consul node
 
@@ -555,6 +561,7 @@ vagrant@n1:~$ curl http://localhost:8500/v1/kv/web/key2?pretty
 
 * Remote Execution
 ** consul exec
+#+BEGIN_SRC sh
 vagrant@n2:~$ consul exec -service web uptime
     agent-one:  22:00:16 up  4:16,  3 users,  load average: 0.00, 0.01, 0.05
     agent-one:
@@ -566,9 +573,10 @@ vagrant@n2:~$ consul exec -service web uptime
 ==> agent-three: finished with exit code 0
 ==> agent-two: finished with exit code 0
 3 / 3 node(s) completed / acknowledged
-
+#+END_SRC
 
 * consul info
+#+BEGIN_SRC sh
 root@n1:~# consul info
 agent:
 check_monitors = 0
@@ -625,7 +633,7 @@ member_time = 2
 members = 1
 query_queue = 0
 query_time = 1
-
+#+END_SRC
 
 
 * consul members

@@ -125,15 +125,19 @@ vagrant@n1:~$ dig @127.0.0.1 -p 8600 ns1
 
 * Setting up Services
 ** mkdir for configuration files
+#+BEGIN_SRC sh
 vagrant@n1:~$ sudo mkdir /etc/consul.d
 mkdir: cannot create directory ‘/etc/consul.d’: File exists
+#+END_SRC
 
 ** Create a configuration file
+#+BEGIN_SRC sh
 vagrant@n1:~$ echo '{"service": {"name": "web", "tags": ["rails"], "port": 80}}' \
 >     >/etc/consul.d/web.json
-
+#+END_SRC
 
 ** startup agent
+#+BEGIN_SRC sh
 vagrant@n1:~$ consul agent -dev -config-dir /etc/consul.d -bind 172.20.20.10
 ==> Starting Consul agent...
 ==> Starting Consul agent RPC...
@@ -169,9 +173,10 @@ vagrant@n1:~$ consul agent -dev -config-dir /etc/consul.d -bind 172.20.20.10
 ==> Newer Consul version available: 0.6.4
     2016/04/09 18:36:14 [INFO] agent: Synced service 'consul'
     2016/04/09 18:36:14 [INFO] agent: Synced service 'web'
-
+#+END_SRC
 
 ** DNS API
+#+BEGIN_SRC sh
 vagrant@n1:~$ dig @127.0.0.1 -p 8600 web.service.consul
 
 ; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 web.service.consul
@@ -192,6 +197,7 @@ web.service.consul.0INA172.20.20.10
 ;; SERVER: 127.0.0.1#8600(127.0.0.1)
 ;; WHEN: Sat Apr 09 18:40:06 UTC 2016
 ;; MSG SIZE  rcvd: 70
+#+END_SRC
 
 *** SRV Record
 vagrant@n1:~$ dig @127.0.0.1 -p 8600 web.service.consul SRV
@@ -242,26 +248,89 @@ rails.web.service.consul. 0INA172.20.20.10
 
 
 ** HTTP API
-vagrant@n1:~$ curl http://localhost:8500/v1/catalog/service/web
-[{"Node":"n1","Address":"172.20.20.10","ServiceID":"web","ServiceName":"web","ServiceTags":["rails"],"ServiceAddress":"","ServicePort":80,"ServiceEnableTagOverride":false,"CreateIndex":5,"ModifyIndex":5}]vagrant@n1:~$
+#+BEGIN_SRC sh
+vagrant@n1:~$ curl http://localhost:8500/v1/catalog/service/web?pretty
+[
+    {
+        "Node": "agent-one",
+        "Address": "172.20.20.10",
+        "ServiceID": "web",
+        "ServiceName": "web",
+        "ServiceTags": [
+            "rails"
+        ],
+        "ServiceAddress": "",
+        "ServicePort": 80,
+        "ServiceEnableTagOverride": false,
+        "CreateIndex": 5,
+        "ModifyIndex": 4171
+    }
+]vagrant@n1:~$
+#+END_SRC
+
 
 *** Query on Healthy nodes
-vagrant@n1:~$ curl 'http://localhost:8500/v1/health/service/web?passing'
-[{"Node":{"Node":"n1","Address":"172.20.20.10","CreateIndex":3,"ModifyIndex":5},"Service":{"ID":"web","Service":"web","Tags":["rails"],"Address":"","Port":80,"EnableTagOverride":false,"CreateIndex":5,"ModifyIndex":5},"Checks":[{"Node":"n1","CheckID":"serfHealth","Name":"Serf Health Status","Status":"passing","Notes":"","Output":"Agent alive and reachable","ServiceID":"","ServiceName":"","CreateIndex":3,"ModifyIndex":3}]}]vagrant@n1:~$
+#+BEGIN_SRC sh
+vagrant@n1:~$ curl http://localhost:8500/v1/health/service/web?passing |jq .
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   445  100   445    0     0  49176      0 --:--:-- --:--:-- --:--:-- 55625
+[
+  {
+    "Checks": [
+      {
+        "ModifyIndex": 3,
+        "CreateIndex": 3,
+        "Node": "agent-one",
+        "CheckID": "serfHealth",
+        "Name": "Serf Health Status",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "Agent alive and reachable",
+        "ServiceID": "",
+        "ServiceName": ""
+      }
+    ],
+    "Service": {
+      "ModifyIndex": 4171,
+      "CreateIndex": 5,
+      "EnableTagOverride": false,
+      "Port": 80,
+      "Address": "",
+      "Tags": [
+        "rails"
+      ],
+      "Service": "web",
+      "ID": "web"
+    },
+    "Node": {
+      "ModifyIndex": 4171,
+      "CreateIndex": 3,
+      "Address": "172.20.20.10",
+      "Node": "agent-one"
+    }
+  }
+]
+#+END_SRC
+
 
 
 ** Setting up Cluster
 *** Startup server1 (notice -dev has been removed from args)
+#+BEGIN_SRC sh
 vagrant@n1:~$ consul agent -server -bootstrap-expect 1 \
 >     -data-dir /tmp/consul -node=agent-one -bind=172.20.20.10 \
 >     -config-dir /etc/consul.d
-
+#+END_SRC
 *** Setup second server
+#+BEGIN_SRC sh
 vagrant@n2:~$ sudo mkdir -p /etc/consul.d
 vagrant@n2:~$ consul agent -data-dir /tmp/consul -node=agent-two \
 >     -bind=172.20.20.11 -config-dir /etc/consul.d
+#+END_SRC
 
 *** Setup third server
+#+BEGIN_SRC sh
 vagrant@n3:~$ sudo mkdir -p /etc/consul.d
 
 consul agent -data-dir /tmp/consul -node=agent-three \
@@ -274,6 +343,7 @@ vagrant@n3:~$ consul agent -data-dir /tmp/consul -node=agent-three \
 ==> Starting Consul agent RPC...
 ==> Consul agent running!
          Node name: 'agent-three'
+#+END_SRC
 
 
 ** Joining a Cluster
@@ -584,6 +654,7 @@ vagrant@n2:~$ consul exec -service web uptime
 3 / 3 node(s) completed / acknowledged
 #+END_SRC
 
+
 * consul info
 #+BEGIN_SRC sh
 root@n1:~# consul info
@@ -658,6 +729,7 @@ agent-one  172.20.20.10:8301  alive   server  0.6.1  2         dc1
 #+BEGIN_SRC sh
 wget https://releases.hashicorp.com/envconsul/0.6.1/envconsul_0.6.1_linux_amd64.zip
 #+END_SRC
+
 
 ** install
 #+BEGIN_SRC sh

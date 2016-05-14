@@ -705,6 +705,17 @@ vagrant@n1:~$ sudo cp envconsul /usr/local/bin/
 
 
 
+
+#+begin_src ditaa :file ditaa-seqboxes.png
++------+   +-----+   +-----+ 
+|{io}  |   |{d}  |   |{s}  | 
+| n1   +---+ n2  +---+  n3 +
+|      |   |     |   |     |
++------+   +-----+   +--+--+
+
+#+end_src
+
+
 * links
 https://www.hashicorp.com/blog/twelve-factor-consul.html
 

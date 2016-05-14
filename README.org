@@ -4,8 +4,7 @@
 or use this one
 https://github.com/redbarron23/consul/blob/master/Vagrantfile
 
-* vagrant up
-* vagrant status
+* vagrant up && vagrant status
 #+BEGIN_SRC sh
 $ vagrant status
 Current machine states:
@@ -15,13 +14,13 @@ n2                        running (virtualbox)
 n3                        running (virtualbox)
 #+END_SRC
 
-* vagrant ssh
-** open up three windows
+* open up three terminal sessions and vagrant ssh
 #+BEGIN_SRC sh
 $ vagrant ssh n1
 $ vagrant ssh n2
 $ vagrant ssh n3
 #+END_SRC
+
 
 * start up Agent in dev mode
 ** $ consul agent -dev -bind 172.20.20.10
@@ -64,20 +63,28 @@ vagrant@n1:~$ consul agent -dev -bind 172.20.20.10
 
 
 ** verify membersip
+#+BEGIN_SRC sh
 vagrant@n1:~$ consul members
 Node  Address            Status  Type    Build  Protocol  DC
 n1    172.20.20.10:8301  alive   server  0.6.1  2         dc1
+#+END_SRC
+
 ** detail flag
+#+BEGIN_SRC sh
 vagrant@n1:~$ consul members --detailed
 Node  Address            Status  Tags
 n1    172.20.20.10:8301  alive   build=0.6.1:68969ce5,dc=dc1,port=8300,role=consul,vsn=2,vsn_max=3,vsn_min=1
+#+END_SRC
 
 ** curl REST interface
+#+BEGIN_SRC sh
 curl localhost:8500/v1/catalog/nodes
 vagrant@n1:~$ curl localhost:8500/v1/catalog/nodes
 [{"Node":"n1","Address":"172.20.20.10","CreateIndex":3,"ModifyIndex":4}]vagrant@n1:~$
+#+END_SRC
 
 ** query DNS
+#+BEGIN_SRC sh
 n1:~$ dig @127.0.0.1 -p 8600 172.20.20.10
 
 ; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 172.20.20.10
@@ -114,7 +121,7 @@ vagrant@n1:~$ dig @127.0.0.1 -p 8600 ns1
 ;; WHEN: Sat Apr 09 18:19:32 UTC 2016
 ;; MSG SIZE  rcvd: 21
 
-
+#+END_SRC
 
 * Setting up Services
 ** mkdir for configuration files
@@ -124,6 +131,7 @@ mkdir: cannot create directory ‘/etc/consul.d’: File exists
 ** Create a configuration file
 vagrant@n1:~$ echo '{"service": {"name": "web", "tags": ["rails"], "port": 80}}' \
 >     >/etc/consul.d/web.json
+
 
 ** startup agent
 vagrant@n1:~$ consul agent -dev -config-dir /etc/consul.d -bind 172.20.20.10
@@ -161,6 +169,7 @@ vagrant@n1:~$ consul agent -dev -config-dir /etc/consul.d -bind 172.20.20.10
 ==> Newer Consul version available: 0.6.4
     2016/04/09 18:36:14 [INFO] agent: Synced service 'consul'
     2016/04/09 18:36:14 [INFO] agent: Synced service 'web'
+
 
 ** DNS API
 vagrant@n1:~$ dig @127.0.0.1 -p 8600 web.service.consul

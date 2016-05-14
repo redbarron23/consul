@@ -1,4 +1,5 @@
 # consul
+
 * Create Vagrantfile
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
@@ -46,40 +47,46 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 end
 
+
 * vagrant up
 
+
 * vagrant status
+#+BEGIN_SRC sh
 $ vagrant status
 Current machine states:
 
 n1                        running (virtualbox)
 n2                        running (virtualbox)
 n3                        running (virtualbox)
-
+#+END_SRC
 
 * vagrant ssh
 ** open up three windows
+#+BEGIN_SRC sh
 $ vagrant ssh n1
 $ vagrant ssh n2
 $ vagrant ssh n3
-
+#+END_SRC
 
 * Download go
+#+BEGIN_SRC sh
 wget https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz
+#+END_SRC
 
 * install Go (Don't use dpkg or rpm)
+#+BEGIN_SRC sh
 root@n1:/home/vagrant/stage# tar -C /usr/local -xzf go1.6.2.linux-amd64.tar.gz
-
+#+END_SRC
 
 * verify installation
+#+BEGIN_SRC sh
 root@n1:/home/vagrant/stage# ls -l /usr/local/go/bin/go
 -rwxr-xr-x 1 root root 12534576 Apr 19 23:51 /usr/local/go/bin/go
 
 root@n1:/home/vagrant/stage# /usr/local/go/bin/go version
 go version go1.6.2 linux/amd64
-
-
-
+#+END_SRC
 
 * Add /usr/local/go/bin to the PATH environment variable. 
 You can do this by adding this line to your /etc/profile (for a system-wide installation) or $HOME/.profile:
@@ -88,6 +95,7 @@ export PATH=$PATH:/usr/local/go/bin
 
 * start up Agent in dev mode
 ** $ consul agent -dev -bind 172.20.20.10
+#+BEGIN_SRC sh
 vagrant@n1:~$ consul agent -dev -bind 172.20.20.10
 ==> Starting Consul agent...
 ==> Starting Consul agent RPC...
@@ -121,7 +129,7 @@ vagrant@n1:~$ consul agent -dev -bind 172.20.20.10
     2016/04/09 18:13:05 [INFO] consul: member 'n1' joined, marking health alive
     2016/04/09 18:13:05 [INFO] consul: New leader elected: n1
     2016/04/09 18:13:07 [INFO] agent: Synced service 'consul'
-
+#+END_SRC
 
 
 
@@ -627,6 +635,7 @@ vagrant@n2:~$ consul exec -service web uptime
 ==> agent-two: finished with exit code 0
 3 / 3 node(s) completed / acknowledged
 
+
 * consul info
 root@n1:~# consul info
 agent:
@@ -686,10 +695,12 @@ query_queue = 0
 query_time = 1
 
 
+
 * consul members
 root@n1:~# consul members
 Node       Address            Status  Type    Build  Protocol  DC
 agent-one  172.20.20.10:8301  alive   server  0.6.1  2         dc1
+
 
 * envconsul (Get Environment Variables)
 ** download
@@ -708,7 +719,7 @@ vagrant@n1:~$ sudo cp envconsul /usr/local/bin/
 
 #+begin_src ditaa :file ditaa-seqboxes.png
 +------+   +-----+   +-----+ 
-|{io}  |   |{d}  |   |{s}  | 
+|cGRE  |   |cGRE  |   |{s}  | 
 | n1   +---+ n2  +---+  n3 +
 |      |   |     |   |     |
 +------+   +-----+   +--+--+

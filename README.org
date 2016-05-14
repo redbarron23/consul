@@ -1,1 +1,712 @@
 # consul
+* Create Vagrantfile
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+$script = <<SCRIPT
+
+echo Installing dependencies...
+sudo apt-get update
+sudo apt-get install -y unzip curl
+
+echo Fetching Consul...
+cd /tmp/
+wget https://releases.hashicorp.com/consul/0.6.1/consul_0.6.1_linux_amd64.zip -O consul.zip
+
+echo Installing Consul...
+unzip consul.zip
+sudo chmod +x consul
+sudo mv consul /usr/bin/consul
+
+sudo mkdir /etc/consul.d
+sudo chmod a+w /etc/consul.d
+
+SCRIPT
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "ubuntu/trusty64"
+
+  config.vm.provision "shell", inline: $script
+
+  config.vm.define "n1" do |n1|
+      n1.vm.hostname = "n1"
+      n1.vm.network "private_network", ip: "172.20.20.10"
+  end
+
+  config.vm.define "n2" do |n2|
+      n2.vm.hostname = "n2"
+      n2.vm.network "private_network", ip: "172.20.20.11"
+  end
+
+  config.vm.define "n3" do |n3|
+      n3.vm.hostname = "n3"
+      n3.vm.network "private_network", ip: "172.20.20.12"
+  end
+end
+
+* vagrant up
+
+* vagrant status
+$ vagrant status
+Current machine states:
+
+n1                        running (virtualbox)
+n2                        running (virtualbox)
+n3                        running (virtualbox)
+
+
+* vagrant ssh
+** open up three windows
+$ vagrant ssh n1
+$ vagrant ssh n2
+$ vagrant ssh n3
+
+
+* Download go
+wget https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz
+
+* install Go (Don't use dpkg or rpm)
+root@n1:/home/vagrant/stage# tar -C /usr/local -xzf go1.6.2.linux-amd64.tar.gz
+
+
+* verify installation
+root@n1:/home/vagrant/stage# ls -l /usr/local/go/bin/go
+-rwxr-xr-x 1 root root 12534576 Apr 19 23:51 /usr/local/go/bin/go
+
+root@n1:/home/vagrant/stage# /usr/local/go/bin/go version
+go version go1.6.2 linux/amd64
+
+
+
+
+* Add /usr/local/go/bin to the PATH environment variable. 
+You can do this by adding this line to your /etc/profile (for a system-wide installation) or $HOME/.profile:
+export PATH=$PATH:/usr/local/go/bin
+
+
+* start up Agent in dev mode
+** $ consul agent -dev -bind 172.20.20.10
+vagrant@n1:~$ consul agent -dev -bind 172.20.20.10
+==> Starting Consul agent...
+==> Starting Consul agent RPC...
+==> Consul agent running!
+         Node name: 'n1'
+        Datacenter: 'dc1'
+            Server: true (bootstrap: false)
+       Client Addr: 127.0.0.1 (HTTP: 8500, HTTPS: -1, DNS: 8600, RPC: 8400)
+      Cluster Addr: 172.20.20.10 (LAN: 8301, WAN: 8302)
+    Gossip encrypt: false, RPC-TLS: false, TLS-Incoming: false
+             Atlas: <disabled>
+
+==> Log data will now stream in as it occurs:
+
+    2016/04/09 18:13:04 [INFO] serf: EventMemberJoin: n1 172.20.20.10
+    2016/04/09 18:13:04 [INFO] serf: EventMemberJoin: n1.dc1 172.20.20.10
+    2016/04/09 18:13:04 [INFO] raft: Node at 172.20.20.10:8300 [Follower] entering Follower state
+    2016/04/09 18:13:04 [INFO] consul: adding LAN server n1 (Addr: 172.20.20.10:8300) (DC: dc1)
+    2016/04/09 18:13:04 [INFO] consul: adding WAN server n1.dc1 (Addr: 172.20.20.10:8300) (DC: dc1)
+    2016/04/09 18:13:04 [ERR] agent: failed to sync remote state: No cluster leader
+    2016/04/09 18:13:05 [WARN] raft: Heartbeat timeout reached, starting election
+    2016/04/09 18:13:05 [INFO] raft: Node at 172.20.20.10:8300 [Candidate] entering Candidate state
+    2016/04/09 18:13:05 [DEBUG] raft: Votes needed: 1
+    2016/04/09 18:13:05 [DEBUG] raft: Vote granted. Tally: 1
+    2016/04/09 18:13:05 [INFO] raft: Election won. Tally: 1
+    2016/04/09 18:13:05 [INFO] raft: Node at 172.20.20.10:8300 [Leader] entering Leader state
+    2016/04/09 18:13:05 [INFO] raft: Disabling EnableSingleNode (bootstrap)
+    2016/04/09 18:13:05 [DEBUG] raft: Node 172.20.20.10:8300 updated peer set (2): [172.20.20.10:8300]
+    2016/04/09 18:13:05 [INFO] consul: cluster leadership acquired
+    2016/04/09 18:13:05 [DEBUG] consul: reset tombstone GC to index 2
+    2016/04/09 18:13:05 [INFO] consul: member 'n1' joined, marking health alive
+    2016/04/09 18:13:05 [INFO] consul: New leader elected: n1
+    2016/04/09 18:13:07 [INFO] agent: Synced service 'consul'
+
+
+
+
+** verify membersip
+vagrant@n1:~$ consul members
+Node  Address            Status  Type    Build  Protocol  DC
+n1    172.20.20.10:8301  alive   server  0.6.1  2         dc1
+** detail flag
+vagrant@n1:~$ consul members --detailed
+Node  Address            Status  Tags
+n1    172.20.20.10:8301  alive   build=0.6.1:68969ce5,dc=dc1,port=8300,role=consul,vsn=2,vsn_max=3,vsn_min=1
+
+** curl REST interface
+curl localhost:8500/v1/catalog/nodes
+vagrant@n1:~$ curl localhost:8500/v1/catalog/nodes
+[{"Node":"n1","Address":"172.20.20.10","CreateIndex":3,"ModifyIndex":4}]vagrant@n1:~$
+
+** query DNS
+n1:~$ dig @127.0.0.1 -p 8600 172.20.20.10
+
+; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 172.20.20.10
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 63928
+;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;172.20.20.10.INA
+
+;; Query time: 2 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sat Apr 09 18:18:30 UTC 2016
+;; MSG SIZE  rcvd: 30
+
+vagrant@n1:~$ dig @127.0.0.1 -p 8600 ns1
+
+; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 ns1
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 18975
+;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;ns1.INA
+
+;; Query time: 3 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sat Apr 09 18:19:32 UTC 2016
+;; MSG SIZE  rcvd: 21
+
+
+
+* Setting up Services
+** mkdir for configuration files
+vagrant@n1:~$ sudo mkdir /etc/consul.d
+mkdir: cannot create directory ‘/etc/consul.d’: File exists
+
+** Create a configuration file
+vagrant@n1:~$ echo '{"service": {"name": "web", "tags": ["rails"], "port": 80}}' \
+>     >/etc/consul.d/web.json
+
+** startup agent
+vagrant@n1:~$ consul agent -dev -config-dir /etc/consul.d -bind 172.20.20.10
+==> Starting Consul agent...
+==> Starting Consul agent RPC...
+==> Consul agent running!
+         Node name: 'n1'
+        Datacenter: 'dc1'
+            Server: true (bootstrap: false)
+       Client Addr: 127.0.0.1 (HTTP: 8500, HTTPS: -1, DNS: 8600, RPC: 8400)
+      Cluster Addr: 172.20.20.10 (LAN: 8301, WAN: 8302)
+    Gossip encrypt: false, RPC-TLS: false, TLS-Incoming: false
+             Atlas: <disabled>
+
+==> Log data will now stream in as it occurs:
+
+    2016/04/09 18:36:09 [INFO] serf: EventMemberJoin: n1 172.20.20.10
+    2016/04/09 18:36:09 [INFO] serf: EventMemberJoin: n1.dc1 172.20.20.10
+    2016/04/09 18:36:09 [INFO] raft: Node at 172.20.20.10:8300 [Follower] entering Follower state
+    2016/04/09 18:36:09 [INFO] consul: adding LAN server n1 (Addr: 172.20.20.10:8300) (DC: dc1)
+    2016/04/09 18:36:09 [INFO] consul: adding WAN server n1.dc1 (Addr: 172.20.20.10:8300) (DC: dc1)
+    2016/04/09 18:36:09 [ERR] agent: failed to sync remote state: No cluster leader
+    2016/04/09 18:36:11 [WARN] raft: Heartbeat timeout reached, starting election
+    2016/04/09 18:36:11 [INFO] raft: Node at 172.20.20.10:8300 [Candidate] entering Candidate state
+    2016/04/09 18:36:11 [DEBUG] raft: Votes needed: 1
+    2016/04/09 18:36:11 [DEBUG] raft: Vote granted. Tally: 1
+    2016/04/09 18:36:11 [INFO] raft: Election won. Tally: 1
+    2016/04/09 18:36:11 [INFO] raft: Node at 172.20.20.10:8300 [Leader] entering Leader state
+    2016/04/09 18:36:11 [INFO] raft: Disabling EnableSingleNode (bootstrap)
+    2016/04/09 18:36:11 [DEBUG] raft: Node 172.20.20.10:8300 updated peer set (2): [172.20.20.10:8300]
+    2016/04/09 18:36:11 [INFO] consul: cluster leadership acquired
+    2016/04/09 18:36:11 [DEBUG] consul: reset tombstone GC to index 2
+    2016/04/09 18:36:11 [INFO] consul: member 'n1' joined, marking health alive
+    2016/04/09 18:36:11 [INFO] consul: New leader elected: n1
+==> Newer Consul version available: 0.6.4
+    2016/04/09 18:36:14 [INFO] agent: Synced service 'consul'
+    2016/04/09 18:36:14 [INFO] agent: Synced service 'web'
+
+** DNS API
+vagrant@n1:~$ dig @127.0.0.1 -p 8600 web.service.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 web.service.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 33632
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;web.service.consul.INA
+
+;; ANSWER SECTION:
+web.service.consul.0INA172.20.20.10
+
+;; Query time: 4 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sat Apr 09 18:40:06 UTC 2016
+;; MSG SIZE  rcvd: 70
+
+*** SRV Record
+vagrant@n1:~$ dig @127.0.0.1 -p 8600 web.service.consul SRV
+
+; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 web.service.consul SRV
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 16915
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;web.service.consul.INSRV
+
+;; ANSWER SECTION:
+web.service.consul.0INSRV1 1 80 n1.node.dc1.consul.
+
+;; ADDITIONAL SECTION:
+n1.node.dc1.consul.0INA172.20.20.10
+
+;; Query time: 4 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sat Apr 09 18:51:16 UTC 2016
+;; MSG SIZE  rcvd: 126
+
+*** DNS Filter by tags
+vagrant@n1:~$ dig @127.0.0.1 -p 8600 rails.web.service.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 rails.web.service.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 20535
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;rails.web.service.consul.INA
+
+;; ANSWER SECTION:
+rails.web.service.consul. 0INA172.20.20.10
+
+;; Query time: 3 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sat Apr 09 18:52:00 UTC 2016
+;; MSG SIZE  rcvd: 82
+
+
+** HTTP API
+vagrant@n1:~$ curl http://localhost:8500/v1/catalog/service/web
+[{"Node":"n1","Address":"172.20.20.10","ServiceID":"web","ServiceName":"web","ServiceTags":["rails"],"ServiceAddress":"","ServicePort":80,"ServiceEnableTagOverride":false,"CreateIndex":5,"ModifyIndex":5}]vagrant@n1:~$
+
+*** Query on Healthy nodes
+vagrant@n1:~$ curl 'http://localhost:8500/v1/health/service/web?passing'
+[{"Node":{"Node":"n1","Address":"172.20.20.10","CreateIndex":3,"ModifyIndex":5},"Service":{"ID":"web","Service":"web","Tags":["rails"],"Address":"","Port":80,"EnableTagOverride":false,"CreateIndex":5,"ModifyIndex":5},"Checks":[{"Node":"n1","CheckID":"serfHealth","Name":"Serf Health Status","Status":"passing","Notes":"","Output":"Agent alive and reachable","ServiceID":"","ServiceName":"","CreateIndex":3,"ModifyIndex":3}]}]vagrant@n1:~$
+
+
+** Setting up Cluster
+*** Startup server1 (notice -dev has been removed from args)
+vagrant@n1:~$ consul agent -server -bootstrap-expect 1 \
+>     -data-dir /tmp/consul -node=agent-one -bind=172.20.20.10 \
+>     -config-dir /etc/consul.d
+
+*** Setup second server
+vagrant@n2:~$ sudo mkdir -p /etc/consul.d
+vagrant@n2:~$ consul agent -data-dir /tmp/consul -node=agent-two \
+>     -bind=172.20.20.11 -config-dir /etc/consul.d
+
+*** Setup third server
+vagrant@n3:~$ sudo mkdir -p /etc/consul.d
+
+consul agent -data-dir /tmp/consul -node=agent-three \
+-bind=172.20.20.12 -config-dir /etc/consul.d
+
+
+vagrant@n3:~$ consul agent -data-dir /tmp/consul -node=agent-three \
+> -bind=172.20.20.12 -config-dir /etc/consul.d
+==> Starting Consul agent...
+==> Starting Consul agent RPC...
+==> Consul agent running!
+         Node name: 'agent-three'
+
+
+** Joining a Cluster
+from master join the other two nodes
+
+vagrant@n1:~$ consul join 172.20.20.11
+Successfully joined cluster by contacting 1 nodes.
+vagrant@n1:~$ consul join 172.20.20.12
+Successfully joined cluster by contacting 1 nodes.
+
+*** check members to verify
+vagrant@n1:~$ consul members
+Node         Address            Status  Type    Build  Protocol  DC
+agent-one    172.20.20.10:8301  alive   server  0.6.1  2         dc1
+agent-three  172.20.20.12:8301  alive   client  0.6.1  2         dc1
+agent-two    172.20.20.11:8301  alive   client  0.6.1  2         dc1
+vagrant@n1:~$
+
+
+** Querying Nodes
+vagrant@n1:~$ dig @127.0.0.1 -p 8600 agent-two.node.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 agent-two.node.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 58226
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;agent-two.node.consul.INA
+
+;; ANSWER SECTION:
+agent-two.node.consul.0INA172.20.20.11
+
+;; Query time: 4 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sat Apr 09 19:33:49 UTC 2016
+;; MSG SIZE  rcvd: 76
+
+vagrant@n1:~$ dig @127.0.0.1 -p 8600 agent-three.node.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 agent-three.node.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 29245
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;agent-three.node.consul.INA
+
+;; ANSWER SECTION:
+agent-three.node.consul. 0INA172.20.20.12
+
+;; Query time: 3 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sat Apr 09 19:33:56 UTC 2016
+;; MSG SIZE  rcvd: 80
+
+
+* Defining Checks
+** add ping and curl checks
+vagrant@n2:~$ echo '{"check": {"name": "ping",
+>   "script": "ping -c1 google.com >/dev/null", "interval": "30s"}}' \
+>   >/etc/consul.d/ping.json
+vagrant@n2:~$ echo '{"service": {"name": "web", "tags": ["rails"], "port": 80,
+>   "check": {"script": "curl localhost >/dev/null 2>&1", "interval": "10s"}}}' \
+>   >/etc/consul.d/web.json
+
+vagrant@n3:~$ echo '{"check": {"name": "ping",
+>   "script": "ping -c1 google.com >/dev/null", "interval": "30s"}}' \
+>   >/etc/consul.d/ping.json
+vagrant@n3:~$ echo '{"service": {"name": "web", "tags": ["rails"], "port": 80,
+>   "check": {"script": "curl localhost >/dev/null 2>&1", "interval": "10s"}}}' \
+>   >/etc/consul.d/web.json
+
+** restart consul to pickup the changes
+enter ctrl-c and restart 
+^C==> Caught signal: interrupt
+==> Gracefully shutting down agent...
+    2016/04/09 19:43:58 [INFO] consul: client starting leave
+    2016/04/09 19:43:58 [INFO] serf: EventMemberLeave: agent-two 172.20.20.11
+    2016/04/09 19:43:58 [INFO] agent: requesting shutdown
+    2016/04/09 19:43:58 [INFO] consul: shutting down client
+    2016/04/09 19:43:58 [ERR] dns: error starting tcp server: accept tcp 127.0.0.1:8600: use of closed network connection
+    2016/04/09 19:43:58 [INFO] agent: shutdown complete
+vagrant@n2:~$ consul agent -data-dir /tmp/consul -node=agent-two     -bind=172.20.20.11 -config-dir /etc/consul.d
+==> Starting Consul agent...
+==> Starting Consul agent RPC...
+==> Consul agent running!
+         Node name: 'agent-two'
+        Datacenter: 'dc1'
+            Server: false (bootstrap: false)
+       Client Addr: 127.0.0.1 (HTTP: 8500, HTTPS: -1, DNS: 8600, RPC: 8400)
+      Cluster Addr: 172.20.20.11 (LAN: 8301, WAN: 8302)
+    Gossip encrypt: false, RPC-TLS: false, TLS-Incoming: false
+             Atlas: <disabled>
+
+==> Log data will now stream in as it occurs:
+
+    2016/04/09 19:44:44 [INFO] serf: EventMemberJoin: agent-two 172.20.20.11
+    2016/04/09 19:44:44 [ERR] agent: failed to sync remote state: No known Consul servers
+    2016/04/09 19:44:48 [WARN] agent: Check 'service:web' is now critical
+
+^C==> Caught signal: interrupt
+==> Gracefully shutting down agent...
+    2016/04/09 19:45:12 [INFO] consul: client starting leave
+    2016/04/09 19:45:13 [INFO] serf: EventMemberLeave: agent-three 172.20.20.12
+    2016/04/09 19:45:13 [INFO] agent: requesting shutdown
+    2016/04/09 19:45:13 [INFO] consul: shutting down client
+    2016/04/09 19:45:13 [ERR] dns: error starting tcp server: accept tcp 127.0.0.1:8600: use of closed network connection
+    2016/04/09 19:45:13 [INFO] agent: shutdown complete
+vagrant@n3:~$ consul agent -data-dir /tmp/consul -node=agent-three -bind=172.20.20.12 -config-dir /etc/consul.d
+==> Starting Consul agent...
+==> Starting Consul agent RPC...
+==> Consul agent running!
+         Node name: 'agent-three'
+        Datacenter: 'dc1'
+            Server: false (bootstrap: false)
+       Client Addr: 127.0.0.1 (HTTP: 8500, HTTPS: -1, DNS: 8600, RPC: 8400)
+      Cluster Addr: 172.20.20.12 (LAN: 8301, WAN: 8302)
+    Gossip encrypt: false, RPC-TLS: false, TLS-Incoming: false
+             Atlas: <disabled>
+
+==> Log data will now stream in as it occurs:
+
+    2016/04/09 19:45:16 [INFO] serf: EventMemberJoin: agent-three 172.20.20.12
+    2016/04/09 19:45:16 [ERR] agent: failed to sync remote state: No known Consul servers
+    2016/04/09 19:45:18 [WARN] agent: Check 'service:web' is now critical
+
+*** re-join cluster
+vagrant@n1:~$ consul join 172.20.20.11
+Successfully joined cluster by contacting 1 nodes.
+vagrant@n1:~$ consul join 172.20.20.12
+Successfully joined cluster by contacting 1 nodes.
+
+vagrant@n1:~$ consul members
+Node         Address            Status  Type    Build  Protocol  DC
+agent-one    172.20.20.10:8301  alive   server  0.6.1  2         dc1
+agent-three  172.20.20.12:8301  alive   client  0.6.1  2         dc1
+agent-two    172.20.20.11:8301  alive   client  0.6.1  2         dc1
+
+
+*** Checking Health Status
+**** curl only for critical services
+vagrant@n1:~$ curl http://localhost:8500/v1/health/state/critical
+[{"Node":"agent-three","CheckID":"service:web","Name":"Service 'web' check","Status":"critical","Notes":"","Output":"","ServiceID":"web","ServiceName":"web","CreateIndex":294,"ModifyIndex":294},{"Node":"agent-two","CheckID":"service:web","Name":"Service 'web' check","Status":"critical","Notes":"","Output":"","ServiceID":"web","ServiceName":"web","CreateIndex":290,"ModifyIndex":290}]
+
+**** dig for services
+vagrant@n1:~$ dig @127.0.0.1 -p 8600 web.service.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 web.service.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 43249
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;web.service.consul.INA
+
+;; ANSWER SECTION:
+web.service.consul.0INA172.20.20.10
+
+;; Query time: 4 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sat Apr 09 20:15:13 UTC 2016
+;; MSG SIZE  rcvd: 70
+
+**** lets enable services so we can make the check pass
+vagrant@n1:~$ sudo python -m SimpleHTTPServer 80 &
+[1] 2434
+
+vagrant@n2:~$ sudo python -m SimpleHTTPServer 80 &
+[1] 3143
+vagrant@n2:~$ Serving HTTP on 0.0.0.0 port 80 ..
+
+vagrant@n3:~$ sudo python -m SimpleHTTPServer 80 &
+[1] 3128
+vagrant@n3:~$ Serving HTTP on 0.0.0.0 port 80 ...
+
+
+
+
+
+**** now check status of services
+***** notice no critical services 
+vagrant@n2:~$ curl http://localhost:8500/v1/health/state/critical
+[]vagrant@n2:~$
+
+***** now three services answer
+vagrant@n2:~$ dig @127.0.0.1 -p 8600 web.service.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.7-Ubuntu <<>> @127.0.0.1 -p 8600 web.service.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 43848
+;; flags: qr aa rd; QUERY: 1, ANSWER: 3, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;web.service.consul.INA
+
+;; ANSWER SECTION:
+web.service.consul.0INA172.20.20.10
+web.service.consul.0INA172.20.20.11
+web.service.consul.0INA172.20.20.12
+
+;; Query time: 4 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sat Apr 09 20:39:02 UTC 2016
+;; MSG SIZE  rcvd: 138
+***** checking logs
+2016/04/09 20:28:06 [WARN] agent: Check 'service:web' is now critical
+2016/04/09 20:28:16 [WARN] agent: Check 'service:web' is now critical
+2016/04/09 20:28:26 [INFO] agent: Synced check 'service:web'
+
+
+
+
+* KEY/VALUE DATA
+** This can be used to hold dynamic configuration, assist in service coordination, build leader election
+*** verify that there are no existing keys in the k/v store
+vagrant@n2:~$ curl -v http://localhost:8500/v1/kv/?recurse
+\* Hostname was NOT found in DNS cache
+\*   Trying 127.0.0.1...
+\* Connected to localhost (127.0.0.1) port 8500 (#0)
+> GET /v1/kv/?recurse HTTP/1.1
+> User-Agent: curl/7.35.0
+> Host: localhost:8500
+> Accept: */*
+>
+< HTTP/1.1 404 Not Found
+< X-Consul-Index: 1
+< X-Consul-Knownleader: true
+< X-Consul-Lastcontact: 0
+< Date: Sat, 09 Apr 2016 20:50:59 GMT
+< Content-Length: 0
+< Content-Type: text/plain; charset=utf-8
+<
+\* Connection #0 to host localhost left intact
+*** add some keys
+vagrant@n2:~$ curl -X PUT -d 'test' http://localhost:8500/v1/kv/web/key1
+truevagrant@n2:~$ curl -X PUT -d 'test' http://localhost:8500/v1/kv/web/key2?flags=42
+truevagrant@n2:~$ curl -X PUT -d 'test'  http://localhost:8500/v1/kv/web/sub/key3
+truevagrant@n2:~$ curl http://localhost:8500/v1/kv/?recurse
+[{"LockIndex":0,"Key":"web/key1","Flags":0,"Value":"dGVzdA==","CreateIndex":808,"ModifyIndex":808},{"LockIndex":0,"Key":"web/key2","Flags":42,"Value":"dGVzdA==","CreateIndex":822,"ModifyIndex":822},{"LockIndex":0,"Key":"web/sub/key3","Flags":0,"Value":"dGVzdA==","CreateIndex":825,"ModifyIndex":825}]vagrant@n2:~$
+
+*** fetch a single key just as easily:
+vagrant@n1:~$ curl http://localhost:8500/v1/kv/web/key1?pretty
+[
+    {
+        "LockIndex": 0,
+        "Key": "web/key1",
+        "Flags": 0,
+        "Value": "dGVzdA==",
+        "CreateIndex": 808,
+        "ModifyIndex": 808
+    }
+]
+
+vagrant@n1:~$ curl http://localhost:8500/v1/kv/web/key2?pretty
+[
+    {
+        "LockIndex": 0,
+        "Key": "web/key2",
+        "Flags": 42,
+        "Value": "dGVzdA==",
+        "CreateIndex": 822,
+        "ModifyIndex": 822
+    }
+]
+
+** try from another consul node
+
+*** Delete a key
+
+*** Put a key
+
+
+
+* Remote Execution
+** consul exec
+vagrant@n2:~$ consul exec -service web uptime
+    agent-one:  22:00:16 up  4:16,  3 users,  load average: 0.00, 0.01, 0.05
+    agent-one:
+==> agent-one: finished with exit code 0
+    agent-two:  22:00:16 up  4:16,  3 users,  load average: 0.00, 0.01, 0.05
+    agent-two:
+    agent-three:  22:00:16 up  4:16,  2 users,  load average: 0.00, 0.01, 0.05
+    agent-three:
+==> agent-three: finished with exit code 0
+==> agent-two: finished with exit code 0
+3 / 3 node(s) completed / acknowledged
+
+* consul info
+root@n1:~# consul info
+agent:
+check_monitors = 0
+check_ttls = 0
+checks = 0
+services = 2
+build:
+prerelease =
+revision = 68969ce5
+version = 0.6.1
+consul:
+bootstrap = true
+known_datacenters = 1
+leader = true
+server = true
+raft:
+applied_index = 14702
+commit_index = 14702
+fsm_pending = 0
+last_contact = never
+last_log_index = 14702
+last_log_term = 3
+last_snapshot_index = 8201
+last_snapshot_term = 3
+num_peers = 0
+state = Leader
+term = 3
+runtime:
+arch = amd64
+cpu_count = 1
+goroutines = 58
+max_procs = 1
+os = linux
+version = go1.5.2
+serf_lan:
+encrypted = false
+event_queue = 1
+event_time = 2
+failed = 0
+intent_queue = 1
+left = 0
+member_time = 5
+members = 1
+query_queue = 0
+query_time = 1
+serf_wan:
+encrypted = false
+event_queue = 0
+event_time = 1
+failed = 0
+intent_queue = 0
+left = 0
+member_time = 2
+members = 1
+query_queue = 0
+query_time = 1
+
+
+* consul members
+root@n1:~# consul members
+Node       Address            Status  Type    Build  Protocol  DC
+agent-one  172.20.20.10:8301  alive   server  0.6.1  2         dc1
+
+* envconsul (Get Environment Variables)
+** download
+wget https://releases.hashicorp.com/envconsul/0.6.1/envconsul_0.6.1_linux_amd64.zip
+
+** install
+vagrant@n1:~$ unzip envconsul_0.6.1_linux_amd64.zip
+Archive:  envconsul_0.6.1_linux_amd64.zip
+  inflating: envconsul
+
+
+vagrant@n1:~$ sudo cp envconsul /usr/local/bin/
+
+
+
+* links
+https://www.hashicorp.com/blog/twelve-factor-consul.html
+
+http://www.mammatustech.com/consul-service-discovery-and-health-for-microservices-architecture-tutorial
+

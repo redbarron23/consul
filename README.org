@@ -1,4 +1,15 @@
 # consul
+* INfo
+Consul provides the following REST endpoints for interacting with Consul:
+    kv - key value
+    agent - api for dealing with agent
+    catalog - dealing with datacenter catalog
+    health - show health checks
+    sessions - group operations and manage consistent view
+    events - fire fast gossip based events
+    acl - setup access control lists and security for Consul
+    status - check status
+
 
 * Create Vagrantfile
 or use this one
@@ -761,4 +772,428 @@ vagrant@n1:~$ sudo cp envconsul /usr/local/bin/
 * links
 https://www.hashicorp.com/blog/twelve-factor-consul.html
 http://www.mammatustech.com/consul-service-discovery-and-health-for-microservices-architecture-tutorial
+
+
+
+
+
+* redux
+
+** config files (n1, n2, n3)
+root@n1:/etc/consul.d# cat /etc/consul.d/config.json
+{
+    "bootstrap": true,
+    "server": true,
+    "datacenter": "us-west-2",
+    "data_dir": "/var/consul",
+    "log_level": "INFO",
+    "enable_syslog": true
+}
+
+root@n2:/etc/consul.d# cat config.json
+{
+    "bootstrap": false,
+    "server": true,
+    "datacenter": "us-west-2",
+    "data_dir": "/var/consul",
+    "log_level": "INFO",
+    "enable_syslog": true,
+    "start_join" : ["172.20.20.10", "172.20.20.11", "172.20.20.12"]
+}
+
+root@n3:/etc/consul.d# cat config.json
+{
+    "bootstrap": false,
+    "server": true,
+    "datacenter": "us-west-2",
+    "data_dir": "/var/consul",
+    "log_level": "INFO",
+    "enable_syslog": true,
+    "start_join" : ["172.20.20.10", "172.20.20.11", "172.20.20.12"]
+
+}
+
+
+** startup
+root@n1:/etc/consul.d# cat startup.sh
+nohup consul agent \
+      -config-file=/etc/consul.d/config.json \
+      -bind 172.20.20.10 \
+      -ui-dir=/opt/consul/web &
+
+root@n2:/etc/consul.d# cat startup.sh
+nohup consul agent -data-dir /tmp/consul \
+    -bind=172.20.20.11 \
+    -config-dir /etc/consul.d \
+    /etc/consul.d/config.json &
+
+root@n3:/etc/consul.d# cat startup.sh
+nohup consul agent -data-dir /tmp/consul \
+    -bind=172.20.20.12 \
+    -config-dir /etc/consul.d \
+    /etc/consul.d/config.json &
+
+
+** consul members
+root@n1:/etc/consul.d# consul members
+Node  Address            Status  Type    Build  Protocol  DC
+n1    172.20.20.10:8301  alive   server  0.6.1  2         us-west-2
+n2    172.20.20.11:8301  alive   server  0.6.1  2         us-west-2
+n3    172.20.20.12:8301  alive   server  0.6.1  2         us-west-2
+
+
+
+
+** Querying nodes
+root@n1:/etc/consul.d# dig @127.0.0.1 -p 8600 n1.node.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.8-Ubuntu <<>> @127.0.0.1 -p 8600 n1.node.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 59778
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;n1.node.consul.INA
+
+;; ANSWER SECTION:
+n1.node.consul.0INA172.20.20.10
+
+;; Query time: 4 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sun May 15 04:26:02 UTC 2016
+;; MSG SIZE  rcvd: 62
+
+root@n1:/etc/consul.d# dig @127.0.0.1 -p 8600 n2.node.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.8-Ubuntu <<>> @127.0.0.1 -p 8600 n2.node.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1163
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;n2.node.consul.INA
+
+;; ANSWER SECTION:
+n2.node.consul.0INA172.20.20.11
+
+;; Query time: 4 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sun May 15 04:26:08 UTC 2016
+;; MSG SIZE  rcvd: 62
+
+root@n1:/etc/consul.d# dig @127.0.0.1 -p 8600 n3.node.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.8-Ubuntu <<>> @127.0.0.1 -p 8600 n3.node.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 51186
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;n3.node.consul.INA
+
+;; ANSWER SECTION:
+n3.node.consul.0INA172.20.20.12
+
+;; Query time: 4 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sun May 15 04:26:14 UTC 2016
+;; MSG SIZE  rcvd: 62
+
+
+** Defining Checks
+*** from second note create the checks
+root@n2:/etc/consul.d# echo '{"check": {"name": "ping",
+>   "script": "ping -c1 google.com >/dev/null", "interval": "30s"}}' \
+>   >/etc/consul.d/ping.json
+root@n2:/etc/consul.d# echo '{"service": {"name": "web", "tags": ["rails"], "port": 80,
+>   "check": {"script": "curl localhost >/dev/null 2>&1", "interval": "10s"}}}' \
+>   >/etc/consul.d/web.json
+root@n2:/etc/consul.d#
+
+
+*** curl service
+root@n2:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?pretty
+[
+    {
+        "Node": "n2",
+        "CheckID": "service:web",
+        "Name": "Service 'web' check",
+        "Status": "critical",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "web",
+        "ServiceName": "web",
+        "CreateIndex": 434,
+        "ModifyIndex": 434
+    }
+]root@n2:/etc/consul.d#
+
+
+*** likewise can dig service
+root@n3:/etc/consul.d# dig @127.0.0.1 -p 8600 web.service.consul
+
+; <<>> DiG 9.9.5-3ubuntu0.8-Ubuntu <<>> @127.0.0.1 -p 8600 web.service.consul
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 34265
+;; flags: qr aa rd; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;web.service.consul.INA
+
+;; AUTHORITY SECTION:
+consul.0INSOAns.consul. postmaster.consul. 1463291687 3600 600 86400 0
+
+;; Query time: 4 msec
+;; SERVER: 127.0.0.1#8600(127.0.0.1)
+;; WHEN: Sun May 15 05:54:47 UTC 2016
+;; MSG SIZE  rcvd: 104
+
+
+
+** KEY/VALUE DATA
+*** starting off with no key values
+*** recurse
+root@n2:/etc/consul.d# curl -v http://localhost:8500/v1/kv/?recurse
+\* Hostname was NOT found in DNS cache
+\*   Trying 127.0.0.1...
+\* Connected to localhost (127.0.0.1) port 8500 (#0)
+> GET /v1/kv/?recurse HTTP/1.1
+> User-Agent: curl/7.35.0
+> Host: localhost:8500
+> Accept: */*
+>
+< HTTP/1.1 404 Not Found
+< X-Consul-Index: 1
+< X-Consul-Knownleader: true
+< X-Consul-Lastcontact: 0
+< Date: Sun, 15 May 2016 06:01:38 GMT
+< Content-Length: 0
+< Content-Type: text/plain; charset=utf-8
+<
+
+\* Connection #0 to host localhost left intact
+
+
+*** Lets add some keys
+root@n2:/etc/consul.d# curl -X PUT -d 'test' http://localhost:8500/v1/kv/web/key1
+trueroot@n2:/etc/consul.d#
+
+root@n3:/etc/consul.d# curl -X PUT -d 'test' http://localhost:8500/v1/kv/web/key2?flags=42
+trueroot@n3:/etc/consul.d#
+
+oot@n3:/etc/consul.d# curl -X PUT -d 'test'  http://localhost:8500/v1/kv/web/sub/key3
+trueroot@n3:/etc/consul.d#
+
+
+*** recurse again (now you should have keys)
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/kv/?recurse |jq .
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   300  100   300    0     0  31159      0 --:--:-- --:--:-- --:--:-- 33333
+[
+  {
+    "ModifyIndex": 589,
+    "CreateIndex": 589,
+    "Value": "dGVzdA==",
+    "Flags": 0,
+    "Key": "web/key1",
+    "LockIndex": 0
+  },
+  {
+    "ModifyIndex": 622,
+    "CreateIndex": 622,
+    "Value": "dGVzdA==",
+    "Flags": 42,
+    "Key": "web/key2",
+    "LockIndex": 0
+  },
+  {
+    "ModifyIndex": 632,
+    "CreateIndex": 632,
+    "Value": "dGVzdA==",
+    "Flags": 0,
+    "Key": "web/sub/key3",
+    "LockIndex": 0
+  }
+]
+
+
+
+
+
+
+*** You can also fetch a single key just as easily:
+root@n2:/etc/consul.d# curl http://localhost:8500/v1/kv/web/key1?pretty
+[
+    {
+        "LockIndex": 0,
+        "Key": "web/key1",
+        "Flags": 0,
+        "Value": "dGVzdA==",
+        "CreateIndex": 589,
+        "ModifyIndex": 589
+    }
+]root@n2:/etc/consul.d#
+
+*** Delete key
+root@n1:/etc/consul.d# curl -X DELETE http://localhost:8500/v1/kv/web/sub?recurse
+trueroot@n1:/etc/consul.d#
+
+
+** now recurse again
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/kv/web?recurse |jq .
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   198  100   198    0     0  21299      0 --:--:-- --:--:-- --:--:-- 22000
+[
+  {
+    "ModifyIndex": 589,
+    "CreateIndex": 589,
+    "Value": "dGVzdA==",
+    "Flags": 0,
+    "Key": "web/key1",
+    "LockIndex": 0
+  },
+  {
+    "ModifyIndex": 622,
+    "CreateIndex": 622,
+    "Value": "dGVzdA==",
+    "Flags": 42,
+    "Key": "web/key2",
+    "LockIndex": 0
+  }
+]
+
+
+*** delete key1 and key2
+root@n3:/etc/consul.d# curl -X DELETE http://localhost:8500/v1/kv/web/key1
+true
+root@n3:/etc/consul.d# curl -X DELETE http://localhost:8500/v1/kv/web/key2
+
+
+*** now recurse again
+root@n3:/etc/consul.d# curl -v http://localhost:8500/v1/kv/?recurse
+\* Hostname was NOT found in DNS cache
+\*   Trying 127.0.0.1...
+\* Connected to localhost (127.0.0.1) port 8500 (#0)
+> GET /v1/kv/?recurse HTTP/1.1
+> User-Agent: curl/7.35.0
+> Host: localhost:8500
+> Accept: */*
+>
+< HTTP/1.1 404 Not Found
+< X-Consul-Index: 814
+< X-Consul-Knownleader: true
+< X-Consul-Lastcontact: 0
+< Date: Sun, 15 May 2016 06:39:01 GMT
+< Content-Length: 0
+< Content-Type: text/plain; charset=utf-8
+<
+
+\* Connection #0 to host localhost left intact
+
+
+*** Lets add them again
+root@n3:/etc/consul.d#  curl -X PUT -d 'test' http://localhost:8500/v1/kv/web/key1
+trueroot@n3:/etc/consul.d# curl -X PUT -d 'test' http://localhost:8500/v1/kv/web/key2?flags=42
+trueroot@n3:/etc/consul.d#
+root@n3:/etc/consul.d#
+root@n3:/etc/consul.d# curl -X PUT -d 'test'  http://localhost:8500/v1/kv/web/sub/key3
+trueroot@n3:/etc/consul.d# true
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/kv/?recurse |jq .
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   300  100   300    0     0  30229      0 --:--:-- --:--:-- --:--:-- 33333
+[
+  {
+    "ModifyIndex": 864,
+    "CreateIndex": 864,
+    "Value": "dGVzdA==",
+    "Flags": 0,
+    "Key": "web/key1",
+    "LockIndex": 0
+  },
+  {
+    "ModifyIndex": 866,
+    "CreateIndex": 866,
+    "Value": "dGVzdA==",
+    "Flags": 42,
+    "Key": "web/key2",
+    "LockIndex": 0
+  },
+  {
+    "ModifyIndex": 869,
+    "CreateIndex": 869,
+    "Value": "dGVzdA==",
+    "Flags": 0,
+    "Key": "web/sub/key3",
+    "LockIndex": 0
+  }
+]
+
+
+** KEY/VALUE HTTP ENDPOINT
+It has only a single endpoint:
+/v1/kv/<key>
+https://www.consul.io/docs/agent/http/kv.html
+
+The GET, PUT and DELETE methods are all supported.
+By default, the datacenter of the agent is queried; however, 
+the dc can be provided using the "?dc=" query parameter. 
+It is important to note that each datacenter has its own KV store, 
+and there is no built-in replication between datacenters. 
+If you are interested in replication between datacenters, look at the Consul Replicate project.
+
+The KV endpoint supports the use of ACL tokens.
+
+GET Method
+When using the GET method, Consul will return the specified key. 
+If the "?recurse" query parameter is provided, it will return all keys with the given prefix.
+This endpoint supports blocking queries and all consistency modes.
+
+
+
+
+PUT method
+When using the PUT method, Consul expects the request body to be the value corresponding to the key. 
+There are a number of query parameters that can be used with a PUT request:
+
+
+DELETE method
+The DELETE method can be used to delete a single key or all keys sharing a prefix. 
+There are a few query parameters that can be used with a DELETE request:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+** web interface
+root@n1:/etc/consul.d# netstat -ant |grep 8500
+tcp        0      0 127.0.0.1:8500          0.0.0.0:*               LISTEN
+
+
+
 

@@ -1193,6 +1193,57 @@ There are a few query parameters that can be used with a DELETE request:
 
 
 
+*** more keys values
+curl -X PUT -d 'val1' http://localhost:8500/v1/kv/stuff/key1
+curl -X PUT -d 'val2' http://localhost:8500/v1/kv/stuff/key2
+curl -X PUT -d 'val3' http://localhost:8500/v1/kv/stuff/key3
+
+vagrant@n1:~$ curl http://localhost:8500/v1/kv/stuff/key1?pretty
+[
+    {
+        "LockIndex": 0,
+        "Key": "stuff/key1",
+        "Flags": 0,
+        "Value": "dmFsMQ==",
+        "CreateIndex": 3048,
+        "ModifyIndex": 3058
+    }
+]vagrant@n1:~$ curl http://localhost:8500/v1/kv/stuff/key2?pretty
+[
+    {
+        "LockIndex": 0,
+        "Key": "stuff/key2",
+        "Flags": 0,
+        "Value": "dmFsMg==",
+        "CreateIndex": 3049,
+        "ModifyIndex": 3059
+    }
+]vagrant@n1:~$ curl http://localhost:8500/v1/kv/stuff/key3?pretty
+[
+    {
+        "LockIndex": 0,
+        "Key": "stuff/key3",
+        "Flags": 0,
+        "Value": "dmFsMw==",
+        "CreateIndex": 3050,
+        "ModifyIndex": 3060
+    }
+
+
+# strip off base64 encoding with raw
+val1vagrant@n1:~$ curl http://localhost:8500/v1/kv/stuff/key1?raw && echo ""
+val1
+vagrant@n1:~$ curl http://localhost:8500/v1/kv/stuff/key2?raw && echo ""
+val2
+vagrant@n1:~$ curl http://localhost:8500/v1/kv/stuff/key3?raw && echo ""
+val3
+
+# update a key 
+vagrant@n1:~$ curl -X PUT -d 'foo' http://localhost:8500/v1/kv/stuff/key1
+truevagrant@n1:~$ curl http://localhost:8500/v1/kv/stuff/key1?raw && echo ""
+foo
+
+
 ** Find Leader
 root@n3:/etc/consul.d# curl http://localhost:8500/v1/status/leader
 "172.20.20.10:8300"root@n3:/etc/consul.d#

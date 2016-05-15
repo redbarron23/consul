@@ -15,6 +15,7 @@ Consul provides the following REST endpoints for interacting with Consul:
 or use this one
 https://github.com/redbarron23/consul/blob/master/Vagrantfile
 
+
 * vagrant up && vagrant status
 #+BEGIN_SRC sh
 $ vagrant status
@@ -24,6 +25,7 @@ n1                        running (virtualbox)
 n2                        running (virtualbox)
 n3                        running (virtualbox)
 #+END_SRC
+
 
 * open up three terminal sessions and vagrant ssh
 #+BEGIN_SRC sh
@@ -133,6 +135,7 @@ vagrant@n1:~$ dig @127.0.0.1 -p 8600 ns1
 ;; MSG SIZE  rcvd: 21
 
 #+END_SRC
+
 
 * Setting up Services
 ** mkdir for configuration files
@@ -1190,6 +1193,223 @@ There are a few query parameters that can be used with a DELETE request:
 
 
 
+** Find Leader
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/status/leader
+"172.20.20.10:8300"root@n3:/etc/consul.d#
+
+** Find Peers
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/status/peers |jq .
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100    61  100    61    0     0   7029      0 --:--:-- --:--:-- --:--:--  7625
+[
+  "172.20.20.10:8300",
+  "172.20.20.12:8300",
+  "172.20.20.11:8300"
+]
+
+** Get Data Centres
+root@n2:/home/ubuntu# curl http://localhost:8500/v1/catalog/datacenters
+["us-west-2"]root@n2:/home/ubuntu#
+
+
+
+*** Registering a service
+root@n3:/etc/consul.d# vi register_service.json
+root@n3:/etc/consul.d# curl --upload-file register_service.json \
+> http://localhost:8500/v1/agent/service/register
+root@n3:/etc/consul.d#  curl http://localhost:8500/v1/agent/services
+
+
+*** Query Service
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/service/myservice?pretty
+[
+    {
+        "Node": {
+            "Node": "n3",
+            "Address": "172.20.20.12",
+            "CreateIndex": 184,
+            "ModifyIndex": 1404
+        },
+        "Service": {
+            "ID": "myservice1",
+            "Service": "myservice",
+            "Tags": null,
+            "Address": "127.0.0.1",
+            "Port": 8080,
+            "EnableTagOverride": false,
+            "CreateIndex": 1393,
+            "ModifyIndex": 1404
+        },
+        "Checks": [
+            {
+                "Node": "n3",
+                "CheckID": "serfHealth",
+                "Name": "Serf Health Status",
+                "Status": "passing",
+                "Notes": "",
+                "Output": "Agent alive and reachable",
+                "ServiceID": "",
+                "ServiceName": "",
+                "CreateIndex": 184,
+                "ModifyIndex": 184
+            },
+            {
+                "Node": "n3",
+                "CheckID": "service:myservice1",
+                "Name": "Service 'myservice' check",
+                "Status": "critical",
+                "Notes": "",
+                "Output": "TTL expired",
+                "ServiceID": "myservice1",
+                "ServiceName": "myservice",
+                "CreateIndex": 1393,
+                "ModifyIndex": 1404
+            }
+        ]
+    }
+]root@n3:/etc/consul.d#
+
+
+** Sending a TTL check
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/agent/check/pass/service:myservice1
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/service/myservice |jq .
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   670  100   670    0     0  70311      0 --:--:-- --:--:-- --:--:-- 74444
+[
+  {
+    "Checks": [
+      {
+        "ModifyIndex": 184,
+        "CreateIndex": 184,
+        "Node": "n3",
+        "CheckID": "serfHealth",
+        "Name": "Serf Health Status",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "Agent alive and reachable",
+        "ServiceID": "",
+        "ServiceName": ""
+      },
+      {
+        "ModifyIndex": 1422,
+        "CreateIndex": 1393,
+        "Node": "n3",
+        "CheckID": "service:myservice1",
+        "Name": "Service 'myservice' check",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "myservice1",
+        "ServiceName": "myservice"
+      }
+    ],
+    "Service": {
+      "ModifyIndex": 1422,
+      "CreateIndex": 1393,
+      "EnableTagOverride": false,
+      "Port": 8080,
+      "Address": "127.0.0.1",
+      "Tags": null,
+      "Service": "myservice",
+      "ID": "myservice1"
+    },
+    "Node": {
+      "ModifyIndex": 1422,
+      "CreateIndex": 184,
+      "Address": "172.20.20.12",
+      "Node": "n3"
+    }
+  }
+]
+
+
+
+
+** envconsul
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv
+enabled=false
+fish=good
+
+
+vagrant@n3:~$ curl -X PUT -d 'true' http://localhost:8500/v1/kv/foo/enabled
+truevagrant@n3
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv
+enabled=true
+fish=good
+
+truevagrant@n3envconsul -prefix foo -pristine printenvfish
+enabled=true
+fish=bad
+
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv
+enabled=true
+fish=bad
+node_ver=1.1.1
+
+
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv fish
+bad
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv node_ver
+1.1.1
+
+
+
+
+
+vagrant@n3:~$ curl -X PUT -d 'db.sqlite3'     http://localhost:8500/v1/kv/web00.django.test/databases/default/name
+truevagrant@n3:~$
+vagrant@n3:~$ envconsul -prefix web00.django.test -pristine printenv
+databases/default/name=db.sqlite3
+
+
+
+
+
+
+vagrant@n3:~$ a=`envconsul -prefix foo -pristine printenv node_ver`
+vagrant@n3:~$ echo $a
+1.1.1
+
+
+
+
+** consul exec
+vagrant@n3:~$ consul exec uptime
+    n3:  16:11:57 up  6:06,  1 user,  load average: 0.00, 0.01, 0.05
+    n3:
+==> n3: finished with exit code 0
+    n2:  16:11:57 up  6:06,  1 user,  load average: 0.04, 0.03, 0.05
+    n2:
+==> n1: finished with exit code 0
+    n1:  16:11:57 up  6:07,  1 user,  load average: 0.03, 0.04, 0.05
+    n1:
+==> n2: finished with exit code 0
+3 / 3 node(s) completed / acknowledged
+vagrant@n3:~$ consul exec 'ps -C consul -f'
+    n3: UID        PID  PPID  C STIME TTY          TIME CMD
+    n3: root      3759     1  0 12:29 pts/0    00:02:01 consul agent -data-dir /tmp/consul -bind=172.20.20.12 -config-dir /etc/consul.d /etc/consul.d/config.json
+    n3: vagrant   5666  3667  0 16:12 pts/0    00:00:00 consul exec ps -C consul -f
+    n3:
+==> n3: finished with exit code 0
+    n2: UID        PID  PPID  C STIME TTY          TIME CMD
+    n2: root      4093     1  0 13:03 pts/0    00:01:45 consul agent -data-dir /tmp/consul -bind=172.20.20.11 -config-dir /etc/consul.d /etc/consul.d/config.json
+    n2:
+    n1: UID        PID  PPID  C STIME TTY          TIME CMD
+    n1: root      4243     1  2 12:07 pts/3    00:06:01 consul agent -config-file=/etc/consul.d/config.json -bind 172.20.20.10 -ui-dir=/opt/consul/web
+    n1:
+==> n1: finished with exit code 0
+==> n2: finished with exit code 0
+3 / 3 node(s) completed / acknowledged
+
+
+apt-get install python-pip
+pip install envconsul
+
+
+
+
 ** web interface
 root@n1:/etc/consul.d# netstat -ant |grep 8500
 tcp        0      0 127.0.0.1:8500          0.0.0.0:*               LISTEN
@@ -1197,3 +1417,7 @@ tcp        0      0 127.0.0.1:8500          0.0.0.0:*               LISTEN
 
 
 
+
+
+** links
+http://www.mammatustech.com/consul-service-discovery-and-health-for-microservices-architecture-tutorial

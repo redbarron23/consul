@@ -1541,6 +1541,17 @@ n3    172.20.20.12:8301  alive   server  0.6.1  2         us-west-2
 }
 
 
+** web
+{
+  "check": {
+    "id": "api",
+    "name": "HTTP API on port 5000",
+    "http": "http://172.20.20.100:5000/health",
+    "interval": "10s"
+    "timeout": "1s"
+  }
+}
+
 ** redis
 {
   "service": {
@@ -1564,3 +1575,32 @@ n3    172.20.20.12:8301  alive   server  0.6.1  2         us-west-2
 ** ES
 
 ** Chef
+
+
+
+** envconsul redux 
+
+root@n1:/home/vagrant# curl http://localhost:8500/v1/kv/stage/mongo_repl?raw && echo ""
+1.1.1.1, 2.2.2.2, 3.3.3.3
+root@n1:/home/vagrant# curl http://localhost:8500/v1/kv/prod/mongo_repl?raw && echo ""
+4.4.4.4, 5.5.5.5, 6.6.6.6
+
+# stage
+root@n1:/home/vagrant# envconsul -consul=localhost:8500 -prefix stage -once env
+...
+mongo_repl=1.1.1.1, 2.2.2.2, 3.3.3.3
+
+# prod
+root@n1:/home/vagrant# envconsul -consul=localhost:8500 -prefix prod -once env
+...
+mongo_repl=4.4.4.4, 5.5.5.5, 6.6.6.6
+
+
+# Lets update prod
+root@n1:/home/vagrant# curl -X PUT -d '10.10.10.10, 20.20.20.20, 30.30.30.30' http://localhost:8500/v1/kv/prod/mongo_repl
+trueroot@n1:/home/vagrant# curl http://localhost:8500/v1/kv/prod/mongo_repl?raw && echo ""
+10.10.10.10, 20.20.20.20, 30.30.30.30
+
+
+root@n1:/home/vagrant# envconsul -consul=localhost:8500 -prefix prod -once env |grep -i mongo
+mongo_repl=10.10.10.10, 20.20.20.20, 30.30.30.30

@@ -1604,3 +1604,183 @@ trueroot@n1:/home/vagrant# curl http://localhost:8500/v1/kv/prod/mongo_repl?raw 
 
 root@n1:/home/vagrant# envconsul -consul=localhost:8500 -prefix prod -once env |grep -i mongo
 mongo_repl=10.10.10.10, 20.20.20.20, 30.30.30.30
+
+
+* health checks redux
+root@n3:/etc/consul.d# python -m SimpleHTTPServer 80 &
+[1] 8401
+root@n3:/etc/consul.d# Serving HTTP on 0.0.0.0 port 80 ...
+
+root@n3:/etc/consul.d# netstat -ant |grep 80
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN
+root@n3:/etc/consul.d# 127.0.0.1 - - [16/May/2016 05:55:42] "GET / HTTP/1.1" 200 -
+
+root@n3:/etc/consul.d# 127.0.0.1 - - [16/May/2016 05:55:52] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2016 05:56:02] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2016 05:56:12] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2016 05:56:22] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2016 05:56:32] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2016 05:56:42] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2016 05:56:52] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/May/2016 05:57:03] "GET / HTTP/1.1" 200 -
+
+
+
+
+** curl health check endpoint for state
+
+*** passing
+/etc/consul.d# curl http://localhost:8500/v1/health/state/passing?pretty
+[
+    {
+        "Node": "n1",
+        "CheckID": "serfHealth",
+        "Name": "Serf Health Status",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "Agent alive and reachable",
+        "ServiceID": "",
+        "ServiceName": "",
+        "CreateIndex": 3,
+        "ModifyIndex": 4854
+    },
+    {
+        "Node": "n2",
+        "CheckID": "ping",
+        "Name": "ping",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "",
+        "ServiceName": "",
+        "CreateIndex": 4101,
+        "ModifyIndex": 4101
+    },
+    {
+        "Node": "n2",
+        "CheckID": "serfHealth",
+        "Name": "Serf Health Status",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "Agent alive and reachable",
+        "ServiceID": "",
+        "ServiceName": "",
+        "CreateIndex": 4098,
+        "ModifyIndex": 4098
+    },
+    {
+        "Node": "n2",
+        "CheckID": "service:web",
+        "Name": "Service 'web' check",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "web",
+        "ServiceName": "web",
+        "CreateIndex": 4100,
+        "ModifyIndex": 4942
+    },
+    {
+        "Node": "n3",
+        "CheckID": "ping",
+        "Name": "ping",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "",
+        "ServiceName": "",
+        "CreateIndex": 4899,
+        "ModifyIndex": 4900
+    },
+    {
+        "Node": "n3",
+        "CheckID": "serfHealth",
+        "Name": "Serf Health Status",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "Agent alive and reachable",
+        "ServiceID": "",
+        "ServiceName": "",
+        "CreateIndex": 4097,
+        "ModifyIndex": 4896
+    },
+    {
+        "Node": "n3",
+        "CheckID": "service:web",
+        "Name": "Service 'web' check",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "web",
+        "ServiceName": "web",
+        "CreateIndex": 4898,
+        "ModifyIndex": 4915
+    }
+
+
+
+*** critical
+root@n1:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?pretty
+[
+    {
+        "Node": "n3",
+        "CheckID": "service:myservice1",
+        "Name": "Service 'myservice' check",
+        "Status": "critical",
+        "Notes": "",
+        "Output": "TTL expired",
+        "ServiceID": "myservice1",
+        "ServiceName": "myservice",
+        "CreateIndex": 4103,
+        "ModifyIndex": 4957
+    }
+]root@n1:/etc/consul.d#
+
+s
+
+
+
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?pretty
+[
+    {
+        "Node": "n3",
+        "CheckID": "service:myservice1",
+        "Name": "Service 'myservice' check",
+        "Status": "critical",
+        "Notes": "",
+        "Output": "TTL expired",
+        "ServiceID": "myservice1",
+        "ServiceName": "myservice",
+        "CreateIndex": 5239,
+        "ModifyIndex": 5239
+    },
+    {
+        "Node": "n3",
+        "CheckID": "service:web",
+        "Name": "Service 'web' check",
+        "Status": "critical",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "web",
+        "ServiceName": "web",
+        "CreateIndex": 4898,
+        "ModifyIndex": 5196
+    }
+]root@n3:/etc/consul.d# curl-X PUT -d '{"Datacenter": "us-west-2", "Node": "n3", "CheckID": "service:myservice1"}' http://127.0.0.1:8500/v1/catalog/deregister
+trueroot@n3:/etc/consul.d#
+root@n3:/etc/consul.d#
+root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?pretty
+[
+    {
+        "Node": "n3",
+        "CheckID": "service:web",
+        "Name": "Service 'web' check",
+        "Status": "critical",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "web",
+        "ServiceName": "web",
+        "CreateIndex": 4898,
+        "ModifyIndex": 5196
+    }
+]root@n3:/etc/consul.d#

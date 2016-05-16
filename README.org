@@ -1472,3 +1472,95 @@ tcp        0      0 127.0.0.1:8500          0.0.0.0:*               LISTEN
 
 ** links
 http://www.mammatustech.com/consul-service-discovery-and-health-for-microservices-architecture-tutorial
+
+
+* consul join 
+root@n1:/etc/consul.d# consul members
+Node  Address            Status  Type    Build  Protocol  DC
+n1    172.20.20.10:8301  alive   server  0.6.1  2         us-west-2
+root@n1:/etc/consul.d# tail nohup.out
+    2016/05/16 03:47:28 [WARN] raft: Rejecting vote from 172.20.20.12:8300 since we have a leader: 172.20.20.10:8300
+    2016/05/16 03:47:28 [WARN] raft: Rejecting vote from 172.20.20.11:8300 since we have a leader: 172.20.20.10:8300
+    2016/05/16 03:47:29 [WARN] raft: Rejecting vote from 172.20.20.12:8300 since we have a leader: 172.20.20.10:8300
+    2016/05/16 03:47:30 [WARN] raft: Rejecting vote from 172.20.20.11:8300 since we have a leader: 172.20.20.10:8300
+    2016/05/16 03:47:30 [WARN] raft: Rejecting vote from 172.20.20.12:8300 since we have a leader: 172.20.20.10:8300
+    2016/05/16 03:47:31 [WARN] raft: Rejecting vote from 172.20.20.11:8300 since we have a leader: 172.20.20.10:8300
+    2016/05/16 03:47:32 [WARN] raft: Rejecting vote from 172.20.20.12:8300 since we have a leader: 172.20.20.10:8300
+    2016/05/16 03:47:33 [WARN] raft: Rejecting vote from 172.20.20.11:8300 since we have a leader: 172.20.20.10:8300
+    2016/05/16 03:47:34 [WARN] raft: Rejecting vote from 172.20.20.12:8300 since we have a leader: 172.20.20.10:8300
+    2016/05/16 03:47:34 [WARN] raft: Rejecting vote from 172.20.20.11:8300 since we have a leader: 172.20.20.10:8300
+root@n1:/etc/consul.d# consul members
+Node  Address            Status  Type    Build  Protocol  DC
+n1    172.20.20.10:8301  alive   server  0.6.1  2         us-west-2
+root@n1:/etc/consul.d# consul join
+At least one address to join must be specified.
+
+
+root@n2:~# consul join 172.20.20.10
+Successfully joined cluster by contacting 1 nodes.
+root@n2:~# consul members
+Node  Address            Status  Type    Build  Protocol  DC
+n1    172.20.20.10:8301  alive   server  0.6.1  2         us-west-2
+n2    172.20.20.11:8301  alive   server  0.6.1  2         us-west-2
+n3    172.20.20.12:8301  alive   server  0.6.1  2         us-west-2
+
+* HTTP/JSON  API ENDPOINTS
+** kv 
+** agent
+** catalog
+** health
+** sessions
+** events
+** acl
+** status
+
+
+* Service Definition
+** Dead man switch
+   time to live, you have to dial in with status update every X
+
+** HTTP ping every N time
+   HTTP Code 200  = PASS
+   HTTP Code 400  = WARN
+   else           = FAIL
+
+** Run a script every N:
+   process 0 = pass
+   process 1 = warn
+   process else = fail
+
+
+** SCRIPT Check
+{
+  "check": {
+    "id": "mem-util",
+    "name": "Memory utilisation",
+    "script": "/usr/local/bin/check_mem.py",
+    "interval": "10s"
+  }
+}
+
+
+** redis
+{
+  "service": {
+    "name": "redis",
+    "tags": ["master"],
+    "address": "172.20.20.100",
+    "port": "6379",
+    "name": "redis",
+    "checks": [
+      {
+        "script": "/usr/local/bin/check_redis.py",
+        "interval": "10s"
+      }
+    ]
+  }
+}
+
+
+** mongo
+
+** ES
+
+** Chef

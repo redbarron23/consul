@@ -16,10 +16,8 @@ Consul provides the following REST endpoints for interacting with Consul:
 -----
 
 * Getting Started and Requirements
-1. VirtualBox
-https://www.virtualbox.org/wiki/Downloads
-2. Vagrant
-https://www.vagrantup.com/
+1. VirtualBox  https://www.virtualbox.org/wiki/Downloads
+2. Vagrant   https://www.vagrantup.com/
 3. optional ChefDK  https://downloads.chef.io/chef-dk/
 
 * your setup
@@ -834,6 +832,38 @@ vagrant@n1:~$ sudo cp envconsul /usr/local/bin/
 #+end_src
 
 
+* env consul working examples
+root@n1:/etc/consul.d# env |grep enabled
+root@n1:/etc/consul.d# envconsul -prefix foo env |grep enabled
+enabled=false
+root@n1:/etc/consul.d# export node_ver=2.0
+root@n1:/etc/consul.d# envconsul -prefix foo env |grep node_ver
+node_ver=2.0
+node_ver=1.1.1
+root@n1:/etc/consul.d# echo $node_ver
+2.0
+root@n1:/etc/consul.d# unset node_ver
+root@n1:/etc/consul.d# echo $node_ver
+
+root@n1:/etc/consul.d# envconsul -prefix foo env |grep node_ver
+node_ver=1.1.1
+
+
+
+
+** upcase it
+root@n1:/etc/consul.d# envconsul -upcase -prefix foo env |grep -i node_ver
+NODE_VER=1.1.1
+
+** query from client
+root@client:/home/vagrant/nodejs# envconsul -upcase -prefix foo env |grep -i node_ver
+NODE_VER=1.1.1
+
+
+
+
+
+
 * envconsul redux
 
 ** config files (n1, n2, n3)
@@ -1485,6 +1515,7 @@ http://www.mammatustech.com/consul-service-discovery-and-health-for-microservice
 https://www.hashicorp.com/blog/twelve-factor-consul.html
 https://libraries.io/github/mtchavez/envconsul
 
+
 * consul join 
 root@n1:/etc/consul.d# consul members
 Node  Address            Status  Type    Build  Protocol  DC
@@ -1951,39 +1982,11 @@ mongod start/running, process 11056
 
 #+END_SRC
 
-* env consul working examples
-root@n1:/etc/consul.d# env |grep enabled
-root@n1:/etc/consul.d# envconsul -prefix foo env |grep enabled
-enabled=false
-root@n1:/etc/consul.d# export node_ver=2.0
-root@n1:/etc/consul.d# envconsul -prefix foo env |grep node_ver
-node_ver=2.0
-node_ver=1.1.1
-root@n1:/etc/consul.d# echo $node_ver
-2.0
-root@n1:/etc/consul.d# unset node_ver
-root@n1:/etc/consul.d# echo $node_ver
-
-root@n1:/etc/consul.d# envconsul -prefix foo env |grep node_ver
-node_ver=1.1.1
-
-
-
-
-** upcase it
-root@n1:/etc/consul.d# envconsul -upcase -prefix foo env |grep -i node_ver
-NODE_VER=1.1.1
-
-** query from client
-root@client:/home/vagrant/nodejs# envconsul -upcase -prefix foo env |grep -i node_ver
-NODE_VER=1.1.1
-
-
-
 
 
 
 * python envconsul
+#+BEGIN_SRC sh
 #!/usr/bin/env python
 import os, envconsul
 
@@ -1998,7 +2001,7 @@ import os, envconsul
 ENV_CONSUL = envconsul.EnvConsul('web00.django.test')
 DATABASE_NAME = ENV_CONSUL.get_str('/databases/default/name')
 print(DATABASE_NAME)
-
+#+END_SRC
 
 
 
@@ -2017,18 +2020,15 @@ db.sqlite3
 
 
 * consul recover
-Update: I got it working, as per pwilczynskiclearcode's answer:
-
+#+begin_attention
 1. stop all three servers
 2. remove /var/consul/*
 3. restart all three in any order with one having -bootstrap-expect=3
 4. consul join from that 1st server with the other two IP's
 That's the only config I can get up and working. The join_start tag leads to server election loop land.
+#+end_attention
 
-
-
-
-
+#+BEGIN_SRC sh
 root@n1:/etc/consul.d# ./startup.sh
 ==> WARNING: Bootstrap mode enabled! Do not enable unless necessary
 ==> Starting Consul agent...
@@ -2070,14 +2070,12 @@ root@n1:/etc/consul.d# ./startup.sh
     2016/05/18 18:25:47 [INFO] consul: New leader elected: n1
     2016/05/18 18:25:48 [INFO] agent: Synced service 'consul'
 ==> Newer Consul version available: 0.6.4
-
-
-
+#+END_SRC
 
 
 ** no leader
 *** when this happens all nodes loose quorum
-
+#+BEGIN_SRC sh
  2016/05/18 20:57:24 [ERR] agent: failed to sync remote state: No cluster leader
     2016/05/18 20:57:26 [WARN] raft: Heartbeat timeout reached, starting election
     2016/05/18 20:57:26 [INFO] raft: Node at 172.20.20.10:8300 [Candidate] entering Candidate state
@@ -2140,3 +2138,4 @@ root@n1:/var/consul# /etc/consul.d/startup.sh
     2016/05/18 20:58:03 [INFO] raft: Disabling EnableSingleNode (bootstrap)
     2016/05/18 20:58:03 [INFO] consul: member 'n1' joined, marking health alive
     2016/05/18 20:58:05 [INFO] agent: Synced service 'consul'
+#+END_SRC

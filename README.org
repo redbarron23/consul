@@ -1,5 +1,8 @@
 # consul
-* INfo
+#+TITLE:     Up and running with consul
+#+AUTHOR:    Jaime Hourihane
+#+EMAIL:     jhourihane@ebay.com
+* Summary
 Consul provides the following REST endpoints for interacting with Consul:
     kv - key value
     agent - api for dealing with agent
@@ -10,6 +13,23 @@ Consul provides the following REST endpoints for interacting with Consul:
     acl - setup access control lists and security for Consul
     status - check status
 
+-----
+
+* Getting Started and Requirements
+1. VirtualBox
+https://www.virtualbox.org/wiki/Downloads
+2. Vagrant
+https://www.vagrantup.com/
+3. optional ChefDK  https://downloads.chef.io/chef-dk/
+
+* your setup
+#+CAPTION: Vagrant boxes
+| hostname         | IP               | Function         |
+|------------------+------------------+------------------|
+| n1               |172.20.20.10      | server           |
+| n2               |172.20.20.11      | server           |
+| n3               |172.20.20.12      | server           |
+| client           |172.20.20.12      | client           |
 
 * Create Vagrantfile
 or use this one
@@ -35,6 +55,7 @@ $ vagrant ssh n3
 #+END_SRC
 
 
+-----
 * start up Agent in dev mode
 ** $ consul agent -dev -bind 172.20.20.10
 #+BEGIN_SRC sh
@@ -1621,6 +1642,7 @@ root@n3:/etc/consul.d# 127.0.0.1 - - [16/May/2016 05:55:52] "GET / HTTP/1.1" 200
 ** curl health check endpoint for state
 
 *** passing
+#+BEGIN_SRC sh
 /etc/consul.d# curl http://localhost:8500/v1/health/state/passing?pretty
 [
     {
@@ -1707,10 +1729,11 @@ root@n3:/etc/consul.d# 127.0.0.1 - - [16/May/2016 05:55:52] "GET / HTTP/1.1" 200
         "CreateIndex": 4898,
         "ModifyIndex": 4915
     }
-
+#+END_SRC
 
 
 *** critical
+#+BEGIN_SRC sh
 root@n1:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?pretty
 [
     {
@@ -1726,10 +1749,6 @@ root@n1:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?prett
         "ModifyIndex": 4957
     }
 ]root@n1:/etc/consul.d#
-
-s
-
-
 
 root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?pretty
 [
@@ -1759,7 +1778,7 @@ root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?prett
     }
 ]root@n3:/etc/consul.d# curl-X PUT -d '{"Datacenter": "us-west-2", "Node": "n3", "CheckID": "service:myservice1"}' http://127.0.0.1:8500/v1/catalog/deregister
 trueroot@n3:/etc/consul.d#
-root@n3:/etc/consul.d#
+
 root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?pretty
 [
     {
@@ -1774,10 +1793,11 @@ root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?prett
         "CreateIndex": 4898,
         "ModifyIndex": 5196
     }
-]root@n3:/etc/consul.d#
+#+END_SRC
 
 
 * adding a client
++BEGIN_SRC sh
 root@client:/etc/consul.d# cat client.json
 {
   "datacenter": "us-west-2",
@@ -1798,11 +1818,11 @@ client  172.20.20.13:8301  alive   client  0.6.1  2         us-west-2
 n1      172.20.20.10:8301  alive   server  0.6.1  2         us-west-2
 n2      172.20.20.11:8301  alive   server  0.6.1  2         us-west-2
 n3      172.20.20.12:8301  alive   server  0.6.1  2         us-west-2
-
-
-
++BEGIN_SRC sh
+#+END_SRC
 
 * Register a new service
+
 {
   "ID": "mongo-primary",
   "Name": "mongo",
@@ -1814,7 +1834,7 @@ n3      172.20.20.12:8301  alive   server  0.6.1  2         us-west-2
   }
 }
 
-
+#+BEGIN_SRC sh
 vagrant@n3:/etc/consul.d$ curl http://localhost:8500/v1/agent/services?pretty
 {
     "consul": {
@@ -1860,7 +1880,7 @@ vagrant@n3:/etc/consul.d$ curl http://localhost:8500/v1/agent/services?pretty
         "ModifyIndex": 0
     }
 }
-
+#+END_SRC
 
 To check this services health, we can use this endpoint.
 
@@ -1914,12 +1934,9 @@ vagrant@n3:/etc/consul.d$ curl http://localhost:8500/v1/health/service/mongo?pre
 
 
 * restart it
++BEGIN_SRC sh
 root@client:/home/vagrant/nodejs# service mongod start
 mongod start/running, process 11056
-
-
-
-
         "Node": "n3",
                 "CheckID": "service:mongo-primary",
                 "Name": "Service 'mongo' check",
@@ -1932,12 +1949,7 @@ mongod start/running, process 11056
                 "ModifyIndex": 10630
             }
 
-
-
-
-
-
-
+#+END_SRC
 
 * env consul working examples
 root@n1:/etc/consul.d# env |grep enabled

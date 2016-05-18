@@ -744,6 +744,47 @@ agent-one  172.20.20.10:8301  alive   server  0.6.1  2         dc1
 
 
 * envconsul (Get Environment Variables)
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv
+enabled=false
+fish=good
+
+
+vagrant@n3:~$ curl -X PUT -d 'true' http://localhost:8500/v1/kv/foo/enabled
+truevagrant@n3
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv
+enabled=true
+fish=good
+
+truevagrant@n3envconsul -prefix foo -pristine printenvfish
+enabled=true
+fish=bad
+
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv
+enabled=true
+fish=bad
+node_ver=1.1.1
+
+
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv fish
+bad
+vagrant@n3:~$ envconsul -prefix foo -pristine printenv node_ver
+1.1.1
+
+
+vagrant@n3:~$ curl -X PUT -d 'db.sqlite3'     http://localhost:8500/v1/kv/web00.django.test/databases/default/name
+truevagrant@n3:~$
+vagrant@n3:~$ envconsul -prefix web00.django.test -pristine printenv
+databases/default/name=db.sqlite3
+
+
+vagrant@n3:~$ a=`envconsul -prefix foo -pristine printenv node_ver`
+vagrant@n3:~$ echo $a
+1.1.1
+
+
+
+
+* envconsul (install)
 ** download
 #+BEGIN_SRC sh
 wget https://releases.hashicorp.com/envconsul/0.6.1/envconsul_0.6.1_linux_amd64.zip
@@ -772,15 +813,7 @@ vagrant@n1:~$ sudo cp envconsul /usr/local/bin/
 #+end_src
 
 
-* links
-https://www.hashicorp.com/blog/twelve-factor-consul.html
-http://www.mammatustech.com/consul-service-discovery-and-health-for-microservices-architecture-tutorial
-
-
-
-
-
-* redux
+* envconsul redux
 
 ** config files (n1, n2, n3)
 root@n1:/etc/consul.d# cat /etc/consul.d/config.json
@@ -1248,6 +1281,7 @@ foo
 root@n3:/etc/consul.d# curl http://localhost:8500/v1/status/leader
 "172.20.20.10:8300"root@n3:/etc/consul.d#
 
+
 ** Find Peers
 root@n3:/etc/consul.d# curl http://localhost:8500/v1/status/peers |jq .
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
@@ -1258,6 +1292,7 @@ root@n3:/etc/consul.d# curl http://localhost:8500/v1/status/peers |jq .
   "172.20.20.12:8300",
   "172.20.20.11:8300"
 ]
+
 
 ** Get Data Centres
 root@n2:/home/ubuntu# curl http://localhost:8500/v1/catalog/datacenters
@@ -1378,52 +1413,6 @@ root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/service/myservice |j
 
 
 
-** envconsul
-vagrant@n3:~$ envconsul -prefix foo -pristine printenv
-enabled=false
-fish=good
-
-
-vagrant@n3:~$ curl -X PUT -d 'true' http://localhost:8500/v1/kv/foo/enabled
-truevagrant@n3
-vagrant@n3:~$ envconsul -prefix foo -pristine printenv
-enabled=true
-fish=good
-
-truevagrant@n3envconsul -prefix foo -pristine printenvfish
-enabled=true
-fish=bad
-
-vagrant@n3:~$ envconsul -prefix foo -pristine printenv
-enabled=true
-fish=bad
-node_ver=1.1.1
-
-
-vagrant@n3:~$ envconsul -prefix foo -pristine printenv fish
-bad
-vagrant@n3:~$ envconsul -prefix foo -pristine printenv node_ver
-1.1.1
-
-
-
-
-
-vagrant@n3:~$ curl -X PUT -d 'db.sqlite3'     http://localhost:8500/v1/kv/web00.django.test/databases/default/name
-truevagrant@n3:~$
-vagrant@n3:~$ envconsul -prefix web00.django.test -pristine printenv
-databases/default/name=db.sqlite3
-
-
-
-
-
-
-vagrant@n3:~$ a=`envconsul -prefix foo -pristine printenv node_ver`
-vagrant@n3:~$ echo $a
-1.1.1
-
-
 
 
 ** consul exec
@@ -1472,7 +1461,8 @@ tcp        0      0 127.0.0.1:8500          0.0.0.0:*               LISTEN
 
 ** links
 http://www.mammatustech.com/consul-service-discovery-and-health-for-microservices-architecture-tutorial
-
+https://www.hashicorp.com/blog/twelve-factor-consul.html
+https://libraries.io/github/mtchavez/envconsul
 
 * consul join 
 root@n1:/etc/consul.d# consul members
@@ -1503,6 +1493,7 @@ Node  Address            Status  Type    Build  Protocol  DC
 n1    172.20.20.10:8301  alive   server  0.6.1  2         us-west-2
 n2    172.20.20.11:8301  alive   server  0.6.1  2         us-west-2
 n3    172.20.20.12:8301  alive   server  0.6.1  2         us-west-2
+
 
 * HTTP/JSON  API ENDPOINTS
 ** kv 
@@ -1784,3 +1775,356 @@ root@n3:/etc/consul.d# curl http://localhost:8500/v1/health/state/critical?prett
         "ModifyIndex": 5196
     }
 ]root@n3:/etc/consul.d#
+
+
+* adding a client
+root@client:/etc/consul.d# cat client.json
+{
+  "datacenter": "us-west-2",
+  "data_dir": "/var/consul",
+  "log_level": "INFO",
+  "node_name": "client",
+  "server": false,
+  "start_join" : ["172.20.20.10", "172.20.20.11", "172.20.20.12"]
+}
+root@client:/etc/consul.d# cat startup.sh
+nohup consul agent -data-dir /opt/consul \
+    -bind=172.20.20.13 \
+    -config-dir /etc/consul.d \
+    /etc/consul.d/config.json &
+root@client:/etc/consul.d# consul members
+Node    Address            Status  Type    Build  Protocol  DC
+client  172.20.20.13:8301  alive   client  0.6.1  2         us-west-2
+n1      172.20.20.10:8301  alive   server  0.6.1  2         us-west-2
+n2      172.20.20.11:8301  alive   server  0.6.1  2         us-west-2
+n3      172.20.20.12:8301  alive   server  0.6.1  2         us-west-2
+
+
+
+
+* Register a new service
+{
+  "ID": "mongo-primary",
+  "Name": "mongo",
+  "Address": "172.20.20.13",
+  "Port": 27017,
+  "Check": {
+    "Interval": "10s",
+    "TTL": "15s"
+  }
+}
+
+
+vagrant@n3:/etc/consul.d$ curl http://localhost:8500/v1/agent/services?pretty
+{
+    "consul": {
+        "ID": "consul",
+        "Service": "consul",
+        "Tags": [],
+        "Address": "",
+        "Port": 8300,
+        "EnableTagOverride": false,
+        "CreateIndex": 0,
+        "ModifyIndex": 0
+    },
+    "mongo-primary": {
+        "ID": "mongo-primary",
+        "Service": "mongo",
+        "Tags": null,
+        "Address": "172.20.20.13",
+        "Port": 27017,
+        "EnableTagOverride": false,
+        "CreateIndex": 0,
+        "ModifyIndex": 0
+    },
+    "myservice1": {
+        "ID": "myservice1",
+        "Service": "myservice",
+        "Tags": null,
+        "Address": "127.0.0.1",
+        "Port": 8080,
+        "EnableTagOverride": false,
+        "CreateIndex": 0,
+        "ModifyIndex": 0
+    },
+    "web": {
+        "ID": "web",
+        "Service": "web",
+        "Tags": [
+            "rails"
+        ],
+        "Address": "",
+        "Port": 80,
+        "EnableTagOverride": false,
+        "CreateIndex": 0,
+        "ModifyIndex": 0
+    }
+}
+
+
+To check this services health, we can use this endpoint.
+
+
+
+
+
+kill it
+root@client:/home/vagrant/nodejs# service mongod stop
+mongod stop/waiting
+
+
+vagrant@n3:/etc/consul.d$ curl http://localhost:8500/v1/health/service/mongo?pretty
+[
+    {
+        "Node": {
+            "Node": "n3",
+            "Address": "172.20.20.12",
+            "CreateIndex": 4097,
+            "ModifyIndex": 10601
+        },
+        "Service": {
+            "ID": "mongo-primary",
+            "Service": "mongo",
+            "Tags": null,
+            "Address": "172.20.20.13",
+            "Port": 27017,
+            "EnableTagOverride": false,
+            "CreateIndex": 10541,
+            "ModifyIndex": 10601
+        },
+        "Checks": [
+         .....
+     
+            {
+                "Node": "n3",
+                "CheckID": "service:mongo-primary",
+                "Name": "Service 'mongo' check",
+                "Status": "critical",
+                "Notes": "",
+                "Output": "TTL expired",
+                "ServiceID": "mongo-primary",
+                "ServiceName": "mongo",
+                "CreateIndex": 10541,
+                "ModifyIndex": 10601
+            }
+        ]
+    }
+
+
+
+
+* restart it
+root@client:/home/vagrant/nodejs# service mongod start
+mongod start/running, process 11056
+
+
+
+
+        "Node": "n3",
+                "CheckID": "service:mongo-primary",
+                "Name": "Service 'mongo' check",
+                "Status": "passing",
+                "Notes": "",
+                "Output": "",
+                "ServiceID": "mongo-primary",
+                "ServiceName": "mongo",
+                "CreateIndex": 10541,
+                "ModifyIndex": 10630
+            }
+
+
+
+
+
+
+
+
+* env consul working examples
+root@n1:/etc/consul.d# env |grep enabled
+root@n1:/etc/consul.d# envconsul -prefix foo env |grep enabled
+enabled=false
+root@n1:/etc/consul.d# export node_ver=2.0
+root@n1:/etc/consul.d# envconsul -prefix foo env |grep node_ver
+node_ver=2.0
+node_ver=1.1.1
+root@n1:/etc/consul.d# echo $node_ver
+2.0
+root@n1:/etc/consul.d# unset node_ver
+root@n1:/etc/consul.d# echo $node_ver
+
+root@n1:/etc/consul.d# envconsul -prefix foo env |grep node_ver
+node_ver=1.1.1
+
+
+
+
+** upcase it
+root@n1:/etc/consul.d# envconsul -upcase -prefix foo env |grep -i node_ver
+NODE_VER=1.1.1
+
+** query from client
+root@client:/home/vagrant/nodejs# envconsul -upcase -prefix foo env |grep -i node_ver
+NODE_VER=1.1.1
+
+
+
+
+
+
+* python envconsul
+#!/usr/bin/env python
+import os, envconsul
+
+#ENV_CONSUL = envconsul.EnvConsul('localhost')
+#NODE_VER = ENV_CONSUL.get_str('/foo')
+
+#print(os.environ.get(NODE_VER))
+#ok = os.environ.get('FISH')
+#print ok
+
+
+ENV_CONSUL = envconsul.EnvConsul('web00.django.test')
+DATABASE_NAME = ENV_CONSUL.get_str('/databases/default/name')
+print(DATABASE_NAME)
+
+
+
+
+'''
+curl -x PUT -d 'True' http://localhost:8500/v1/kv/web00.django.test/debug
+
+# envconsul -prefix web00.django.test/databases -pristine printenv
+default/name=db.sqlite3
+
+root@n1:/etc/consul.d# envconsul -prefix web00.django.test/databases/default -pristine printenv name
+db.sqlite3
+
+'''
+
+
+
+
+* consul recover
+Update: I got it working, as per pwilczynskiclearcode's answer:
+
+1. stop all three servers
+2. remove /var/consul/*
+3. restart all three in any order with one having -bootstrap-expect=3
+4. consul join from that 1st server with the other two IP's
+That's the only config I can get up and working. The join_start tag leads to server election loop land.
+
+
+
+
+
+root@n1:/etc/consul.d# ./startup.sh
+==> WARNING: Bootstrap mode enabled! Do not enable unless necessary
+==> Starting Consul agent...
+==> Starting Consul agent RPC...
+==> Consul agent running!
+         Node name: 'n1'
+        Datacenter: 'us-west-2'
+            Server: true (bootstrap: true)
+       Client Addr: 127.0.0.1 (HTTP: 8500, HTTPS: -1, DNS: 8600, RPC: 8400)
+      Cluster Addr: 172.20.20.10 (LAN: 8301, WAN: 8302)
+    Gossip encrypt: false, RPC-TLS: false, TLS-Incoming: false
+             Atlas: <disabled>
+
+==> Log data will now stream in as it occurs:
+
+    2016/05/18 18:25:46 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 18:25:46 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 18:25:46 [INFO] serf: EventMemberJoin: n1 172.20.20.10
+    2016/05/18 18:25:46 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 18:25:46 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 18:25:46 [INFO] serf: EventMemberJoin: n1.us-west-2 172.20.20.10
+    2016/05/18 18:25:46 [INFO] raft: Node at 172.20.20.10:8300 [Follower] entering Follower state
+    2016/05/18 18:25:46 [INFO] serf: Attempting re-join to previously known node: n3: 172.20.20.12:8301
+    2016/05/18 18:25:46 [INFO] consul: adding LAN server n1 (Addr: 172.20.20.10:8300) (DC: us-west-2)
+    2016/05/18 18:25:46 [WARN] serf: Failed to re-join any previously known node
+    2016/05/18 18:25:46 [INFO] consul: adding WAN server n1.us-west-2 (Addr: 172.20.20.10:8300) (DC: us-west-2)
+    2016/05/18 18:25:46 [INFO] serf: Attempting re-join to previously known node: client: 172.20.20.13:8301
+    2016/05/18 18:25:46 [ERR] agent: failed to sync remote state: No cluster leader
+    2016/05/18 18:25:46 [INFO] serf: EventMemberJoin: client 172.20.20.13
+    2016/05/18 18:25:46 [INFO] serf: Re-joined to previously known node: client: 172.20.20.13:8301
+    2016/05/18 18:25:47 [WARN] raft: Heartbeat timeout reached, starting election
+    2016/05/18 18:25:47 [INFO] raft: Node at 172.20.20.10:8300 [Candidate] entering Candidate state
+    2016/05/18 18:25:47 [INFO] raft: Election won. Tally: 1
+    2016/05/18 18:25:47 [INFO] raft: Node at 172.20.20.10:8300 [Leader] entering Leader state
+    2016/05/18 18:25:47 [INFO] raft: Disabling EnableSingleNode (bootstrap)
+    2016/05/18 18:25:47 [INFO] consul: cluster leadership acquired
+    2016/05/18 18:25:47 [INFO] consul: member 'n1' joined, marking health alive
+    2016/05/18 18:25:47 [INFO] consul: member 'client' joined, marking health alive
+    2016/05/18 18:25:47 [INFO] consul: New leader elected: n1
+    2016/05/18 18:25:48 [INFO] agent: Synced service 'consul'
+==> Newer Consul version available: 0.6.4
+
+
+
+
+
+** no leader
+*** when this happens all nodes loose quorum
+
+ 2016/05/18 20:57:24 [ERR] agent: failed to sync remote state: No cluster leader
+    2016/05/18 20:57:26 [WARN] raft: Heartbeat timeout reached, starting election
+    2016/05/18 20:57:26 [INFO] raft: Node at 172.20.20.10:8300 [Candidate] entering Candidate state
+    2016/05/18 20:57:26 [INFO] raft: Election won. Tally: 1
+    2016/05/18 20:57:26 [INFO] raft: Node at 172.20.20.10:8300 [Leader] entering Leader state
+    2016/05/18 20:57:26 [INFO] raft: Disabling EnableSingleNode (bootstrap)
+    2016/05/18 20:57:26 [INFO] raft: Added peer 172.20.20.11:8300, starting replication
+    2016/05/18 20:57:26 [INFO] raft: Added peer 172.20.20.12:8300, starting replication
+
+
+oot@n1:/var/consul# rm -rf ./raft/
+root@n1:/var/consul# /etc/consul.d/startup.sh
+==> Bootstrap cannot be provided with an expected server count
+==> WARNING: Bootstrap mode enabled! Do not enable unless necessary
+==> Starting Consul agent...
+==> Starting Consul agent RPC...
+==> Consul agent running!
+         Node name: 'n1'
+        Datacenter: 'us-west-2'
+            Server: true (bootstrap: true)
+       Client Addr: 127.0.0.1 (HTTP: 8500, HTTPS: -1, DNS: 8600, RPC: 8400)
+      Cluster Addr: 172.20.20.10 (LAN: 8301, WAN: 8302)
+    Gossip encrypt: false, RPC-TLS: false, TLS-Incoming: false
+             Atlas: <disabled>
+
+==> Log data will now stream in as it occurs:
+
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: EventMemberJoin: n1 172.20.20.10
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: Ignoring previous leave in snapshot
+    2016/05/18 20:58:01 [INFO] serf: EventMemberJoin: n1.us-west-2 172.20.20.10
+    2016/05/18 20:58:01 [INFO] raft: Node at 172.20.20.10:8300 [Follower] entering Follower state
+    2016/05/18 20:58:01 [WARN] serf: Failed to re-join any previously known node
+    2016/05/18 20:58:01 [INFO] consul: adding LAN server n1 (Addr: 172.20.20.10:8300) (DC: us-west-2)
+    2016/05/18 20:58:01 [WARN] serf: Failed to re-join any previously known node
+    2016/05/18 20:58:01 [INFO] consul: adding WAN server n1.us-west-2 (Addr: 172.20.20.10:8300) (DC: us-west-2)
+    2016/05/18 20:58:01 [ERR] agent: failed to sync remote state: No cluster leader
+    2016/05/18 20:58:03 [WARN] raft: Heartbeat timeout reached, starting election
+    2016/05/18 20:58:03 [INFO] raft: Node at 172.20.20.10:8300 [Candidate] entering Candidate state
+    2016/05/18 20:58:03 [INFO] raft: Election won. Tally: 1
+    2016/05/18 20:58:03 [INFO] raft: Node at 172.20.20.10:8300 [Leader] entering Leader state
+    2016/05/18 20:58:03 [INFO] consul: cluster leadership acquired
+    2016/05/18 20:58:03 [INFO] consul: New leader elected: n1
+    2016/05/18 20:58:03 [INFO] raft: Disabling EnableSingleNode (bootstrap)
+    2016/05/18 20:58:03 [INFO] consul: member 'n1' joined, marking health alive
+    2016/05/18 20:58:05 [INFO] agent: Synced service 'consul'

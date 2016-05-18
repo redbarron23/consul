@@ -1,0 +1,52 @@
+* Install nvm
+vagrant@client:~$ curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.31.1/install.sh | bash
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  7766  100  7766    0     0  18901      0 --:--:-- --:--:-- --:--:-- 18895
+=> Downloading nvm as script to '/home/vagrant/.nvm'
+...
+
+Last login: Mon May 16 15:48:23 2016 from 10.0.2.2
+vagrant@client:~$ nvm
+
+Node Version Manager
+
+
+* install node version
+vagrant@client:~$ nvm install 4.2
+Downloading https://nodejs.org/dist/v4.2.6/node-v4.2.6-linux-x64.tar.xz...
+######################################################################## 100.0%
+Now using node v4.2.6 (npm v2.14.12)
+Creating default alias: default -> 4.2 (-> v4.2.6)
+
+* run a test node http app
+vagrant@client:~/nodejs$ cat server.js
+var http = require('http');
+//var foo = 'bar'
+
+var server = http.createServer(function(req, res) {
+  res.writeHead(200);
+  var foo = process.env.foo;
+  var resp = {
+  foo: foo,
+  hello: "hello from Http and " + "foo"
+  };
+  res.end(JSON.stringify(resp));
+//  res.end(resp);
+});
+server.listen(8080);
+
+
+** startup server
+vagrant@client:~/nodejs$ node server.js &
+[1] 7151
+vagrant@client:~/nodejs$ ps -C node -f
+UID        PID  PPID  C STIME TTY          TIME CMD
+vagrant   7151  6398  1 18:42 pts/0    00:00:00 node server.js
+
+
+
+
+
+
+

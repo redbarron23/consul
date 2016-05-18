@@ -1,0 +1,9 @@
+{
+  "datacenter": "us-west-2",
+  "data_dir": "/var/consul",
+  "bind_addr": "172.20.20.13",
+  "log_level": "INFO",
+  "node_name": "client",
+  "server": false,
+  "start_join" : ["172.20.20.11", "172.20.20.12"]
+}

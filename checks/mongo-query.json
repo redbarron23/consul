@@ -1,0 +1,15 @@
+{
+    "service": {
+        "name": "mongo",
+        "tags": [
+            "database",
+            "nosql"
+        ],
+         "port": 27017,
+         "check": {
+             "name": "status",
+             "script": "mongo test --eval 'printjson(db.collection1.findOne())'",
+             "interval": "30s"
+         }
+     }
+}

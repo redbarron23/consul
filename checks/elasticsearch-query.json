@@ -1,0 +1,15 @@
+{
+    "service": {
+        "name": "elasticsearch",
+        "tags": [
+            "database",
+            "nosql"
+        ],
+         "port": 9200,
+         "check": {
+             "name": "status",
+             "script": "curl localhost:9200/_cluster/health",
+             "interval": "30s"
+         }
+     }
+}

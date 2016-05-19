@@ -1,0 +1,15 @@
+{
+    "service": {
+        "name": "redis",
+        "tags": [
+            "database",
+            "nosql"
+        ],
+         "port": 6379,
+         "check": {
+             "name": "status",
+             "script": "redis-cli GET a",
+             "interval": "30s"
+         }
+     }
+}
